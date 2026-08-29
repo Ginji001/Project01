@@ -48,6 +48,8 @@
   let undoStack = [];
   let timer = null;
   let deferredInstall = null;
+  let dragState = null;
+  let suppressClickUntil = 0;
 
   function newStats() {
     return {wins:{1:0,2:0,3:0,4:0,5:0}, best:{1:null,2:null,3:null,4:null,5:null}, played:{1:0,2:0,3:0,4:0,5:0}};
@@ -555,6 +557,7 @@
   function closeSheet(sheet) { sheet.classList.add('hidden'); }
 
   function handleGameClick(e) {
+    if (Date.now() < suppressClickUntil) return;
     const cardEl = e.target.closest('.card');
     const foundationSlot = e.target.closest('.foundation-slot');
     const tableauDest = e.target.closest('.tableau-column');
@@ -602,8 +605,162 @@
     if (tableauDest && selected) { moveToTableau(Number(tableauDest.dataset.tableauDest)); }
   }
 
+
+  function sourceFromCardElement(cardEl) {
+    const source = cardEl.dataset.source;
+    if (source === 'waste') return {type:'waste'};
+    if (source === 'foundation') return {type:'foundation', foundation:Number(cardEl.dataset.foundation)};
+    if (source === 'tableau') return {type:'tableau', col:Number(cardEl.dataset.col), index:Number(cardEl.dataset.index)};
+    return null;
+  }
+
+  function cleanupDrag() {
+    if (!dragState) return;
+    if (dragState.ghost) dragState.ghost.remove();
+    if (dragState.cardEl) {
+      dragState.cardEl.style.visibility = '';
+      dragState.cardEl.classList.remove('drag-source');
+    }
+    dragState = null;
+  }
+
+  function updateDragGhost(x, y) {
+    if (!dragState?.ghost) return;
+    dragState.ghost.style.left = `${x - dragState.offsetX}px`;
+    dragState.ghost.style.top = `${y - dragState.offsetY}px`;
+  }
+
+  function beginCardDrag(cardEl, event) {
+    const source = sourceFromCardElement(cardEl);
+    if (!source) return;
+    dragState = {
+      pointerId: event.pointerId,
+      cardEl,
+      source,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: event.clientX - cardEl.getBoundingClientRect().left,
+      offsetY: event.clientY - cardEl.getBoundingClientRect().top,
+      active: false,
+      ghost: null
+    };
+  }
+
+  function activateCardDrag(event) {
+    if (!dragState || dragState.active) return;
+    const sourceCards = (() => {
+      const prev = selected;
+      selected = dragState.source;
+      const cards = getSelectedCards();
+      selected = prev;
+      return cards;
+    })();
+    if (!sourceCards.length || !validRun(sourceCards)) {
+      cleanupDrag();
+      return;
+    }
+
+    dragState.active = true;
+    selected = dragState.source;
+
+    const rect = dragState.cardEl.getBoundingClientRect();
+    const ghost = dragState.cardEl.cloneNode(true);
+    ghost.classList.add('drag-ghost');
+    ghost.classList.remove('selected', 'playable', 'hint-flash');
+    ghost.style.width = `${rect.width}px`;
+    ghost.style.height = `${rect.height}px`;
+    document.body.appendChild(ghost);
+    dragState.ghost = ghost;
+    dragState.cardEl.classList.add('drag-source');
+    dragState.cardEl.style.visibility = 'hidden';
+    updateDragGhost(event.clientX, event.clientY);
+    document.body.classList.add('is-dragging-card');
+  }
+
+  function finishCardDrag(event) {
+    if (!dragState) return;
+    const wasActive = dragState.active;
+    const source = dragState.source;
+    const sourceEl = dragState.cardEl;
+
+    if (!wasActive) {
+      cleanupDrag();
+      return;
+    }
+
+    // Hide ghost/source while hit-testing the actual drop target.
+    if (dragState.ghost) dragState.ghost.style.display = 'none';
+    sourceEl.style.visibility = 'hidden';
+    const target = document.elementFromPoint(event.clientX, event.clientY);
+    sourceEl.style.visibility = '';
+    document.body.classList.remove('is-dragging-card');
+
+    // Keep the source selected while the existing move rules validate the drop.
+    selected = source;
+    const foundationSlot = target?.closest?.('.foundation-slot');
+    const tableauColumn = target?.closest?.('.tableau-column');
+
+    cleanupDrag();
+    suppressClickUntil = Date.now() + 500;
+
+    if (foundationSlot) {
+      moveToFoundation(Number(foundationSlot.dataset.foundationSlot));
+      return;
+    }
+    if (tableauColumn) {
+      moveToTableau(Number(tableauColumn.dataset.tableauDest));
+      return;
+    }
+
+    selected = null;
+    setHelper('そこには置けないにゃ', 'カードの上か、空いている列・組札の枠までドラッグしてね。');
+    render();
+  }
+
+  function setupPointerDrag() {
+    const gameArea = document.getElementById('gameArea');
+
+    gameArea.addEventListener('pointerdown', e => {
+      if (state?.won || e.pointerType === 'mouse' && e.button !== 0) return;
+      const cardEl = e.target.closest('.card');
+      if (!cardEl) return;
+
+      // 裏向きカードはタップでめくる。ドラッグ対象は表向きだけ。
+      const source = sourceFromCardElement(cardEl);
+      let card = null;
+      if (source?.type === 'waste') card = topCard(state.waste);
+      if (source?.type === 'foundation') card = topCard(state.foundations[source.foundation]);
+      if (source?.type === 'tableau') card = state.tableau[source.col][source.index];
+      if (!card?.faceUp) return;
+
+      beginCardDrag(cardEl, e);
+      try { cardEl.setPointerCapture(e.pointerId); } catch {}
+    }, {passive:true});
+
+    gameArea.addEventListener('pointermove', e => {
+      if (!dragState || dragState.pointerId !== e.pointerId) return;
+      const distance = Math.hypot(e.clientX - dragState.startX, e.clientY - dragState.startY);
+      if (!dragState.active && distance >= 8) activateCardDrag(e);
+      if (dragState?.active) {
+        e.preventDefault();
+        updateDragGhost(e.clientX, e.clientY);
+      }
+    }, {passive:false});
+
+    gameArea.addEventListener('pointerup', e => {
+      if (!dragState || dragState.pointerId !== e.pointerId) return;
+      finishCardDrag(e);
+    });
+
+    gameArea.addEventListener('pointercancel', () => {
+      document.body.classList.remove('is-dragging-card');
+      cleanupDrag();
+    });
+  }
+
   function setupEvents() {
     document.getElementById('gameArea').addEventListener('click', handleGameClick);
+    setupPointerDrag();
     els.undo.addEventListener('click', undo);
     els.hint.addEventListener('click', hint);
     els.newGame.addEventListener('click', () => {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hachiware-solitaire-v2';
+const CACHE_NAME = 'hachiware-solitaire-v3';
 const APP_SHELL = [
   './',
   './index.html',

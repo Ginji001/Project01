@@ -302,3 +302,38 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   font-size: calc(var(--card-w) * .14);
   opacity: .15;
 }
+
+/* card-drag-v3 */
+.card {
+  touch-action: none;
+  -webkit-user-drag: none;
+}
+.card svg,
+.card img,
+.stock svg,
+.foundation-slot svg {
+  pointer-events: none;
+}
+.drag-source {
+  opacity: .25;
+}
+.drag-ghost {
+  position: fixed !important;
+  z-index: 5000 !important;
+  pointer-events: none !important;
+  margin: 0 !important;
+  top: 0;
+  left: 0;
+  transform: rotate(2deg) scale(1.04);
+  box-shadow: 0 14px 28px rgba(0,0,0,.38), 0 0 0 3px var(--accent) !important;
+  opacity: .96;
+}
+.is-dragging-card {
+  overflow: hidden;
+  user-select: none;
+}
+.is-dragging-card .tableau-column,
+.is-dragging-card .foundation-slot {
+  outline: 2px dashed rgba(255,240,156,.58);
+  outline-offset: -2px;
+}
