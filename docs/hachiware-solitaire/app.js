@@ -4,7 +4,7 @@
   const SUITS = ['♠', '♥', '♣', '♦'];
   const SUIT_KEYS = ['S', 'H', 'C', 'D'];
   const RANKS = {1:'A',11:'J',12:'Q',13:'K'};
-  const STORAGE_KEY = 'hachiware-solitaire-state-v15';
+  const STORAGE_KEY = 'hachiware-solitaire-state-v16';
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
@@ -179,45 +179,12 @@
   }
 
   function chooseCapacities() {
-    // Hidden-card counts total 35. Each column gets 3-7 hidden cards,
-    // so final visible column sizes become 4-8 cards.
-    // The sum always stays 35, but depth distribution changes every game.
-    let capacities;
-    let guard = 0;
-
-    do {
-      capacities = [5,5,5,5,5,5,5];
-
-      // Move cards between columns while respecting the 3-7 range.
-      const moves = 10 + Math.floor(Math.random() * 9);
-      for (let step = 0; step < moves; step++) {
-        const donors = capacities
-          .map((value, index) => ({value, index}))
-          .filter(x => x.value > 3);
-        const receivers = capacities
-          .map((value, index) => ({value, index}))
-          .filter(x => x.value < 7);
-
-        if (!donors.length || !receivers.length) break;
-
-        const donor = donors[Math.floor(Math.random() * donors.length)].index;
-        const receiverChoices = receivers.filter(x => x.index !== donor);
-        if (!receiverChoices.length) continue;
-        const receiver = receiverChoices[Math.floor(Math.random() * receiverChoices.length)].index;
-
-        capacities[donor] -= 1;
-        capacities[receiver] += 1;
-      }
-
-      capacities = shuffledCopy(capacities);
-      guard += 1;
-    } while (
-      guard < 12 &&
-      Math.max(...capacities) - Math.min(...capacities) < 2
-    );
-
-    return capacities;
+    // Final tableau column sizes are always all different:
+    // 3,4,5,6,7,8,9 cards in a random column order.
+    // One visible card sits on each column, so hidden capacities are 2..8.
+    return shuffledCopy([2,3,4,5,6,7,8]);
   }
+
 
   function distributeBalanced(order, visible, bridge) {
     const capacities = chooseCapacities();
@@ -287,7 +254,7 @@
 
     // 10 cards go to the upper-left stock, balanced across suits and rank bands.
     // Remaining 34 + bridge = 35 hidden tableau cards.
-    // Column depth is randomized every game while keeping the total at 42 tableau cards.
+    // Final column sizes are exactly 3,4,5,6,7,8,9 in a random order.
     const {stockDrawOrder, tableauOrder} = splitBalancedStock(fullHiddenOrder, 10);
     const hiddenColumns = distributeBalanced(tableauOrder, visible, bridge);
 
@@ -302,7 +269,7 @@
     stock.forEach(card => card.faceUp = false);
 
     return {
-      version: 15,
+      version: 16,
       difficulty: Number(level),
       stock,
       waste: [],
@@ -328,7 +295,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 15 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 16 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -342,7 +309,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('下の枚数も毎回ランダムだにゃ', `${DIFFICULTIES[level].name}で開始。場札42枚の合計は同じでも、7列の深さは毎回4〜8枚の範囲で変化。カードの配置も毎回変わるよ。`);
+    setHelper('7列ぜんぶ枚数が違うにゃ', `${DIFFICULTIES[level].name}で開始。下の場札は3・4・5・6・7・8・9枚を毎回ランダムな列順で配置。同じ枚数の列は1つもないよ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
