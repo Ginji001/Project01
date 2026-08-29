@@ -8,11 +8,11 @@
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
-    1: {name:'ふつう', draw:2, redeals:0, hints:2, undos:3, glow:false, lockFoundation:false, desc:'2枚めくり・山札1周・ヒント2回・やり直し3回'},
-    2: {name:'むずかしい', draw:2, redeals:0, hints:1, undos:2, glow:false, lockFoundation:false, desc:'2枚めくり・山札1周・ヒント1回・やり直し2回'},
-    3: {name:'かなり難しい', draw:3, redeals:0, hints:1, undos:1, glow:false, lockFoundation:false, desc:'3枚めくり・山札1周・ヒント1回・やり直し1回'},
-    4: {name:'激むず', draw:3, redeals:0, hints:0, undos:1, glow:false, lockFoundation:true, desc:'3枚めくり・山札1周・ヒントなし・組札を戻せない'},
-    5: {name:'ねこ神級', draw:3, redeals:0, hints:0, undos:0, glow:false, lockFoundation:true, desc:'3枚めくり・山札1周・ヒント/やり直しなし・組札を戻せない'}
+    1: {name:'手強い', draw:1, redeals:0, hints:5, undos:3, glow:false, lockFoundation:false, maxRun:5, emptyKingSingle:false, autoFoundation:true, desc:'ヒント5回・やり直し3回・連続移動5枚まで'},
+    2: {name:'難しい', draw:1, redeals:0, hints:4, undos:2, glow:false, lockFoundation:true, maxRun:4, emptyKingSingle:false, autoFoundation:false, desc:'ヒント4回・組札戻し不可・連続移動4枚まで'},
+    3: {name:'上級', draw:1, redeals:0, hints:3, undos:1, glow:false, lockFoundation:true, maxRun:3, emptyKingSingle:true, autoFoundation:false, desc:'ヒント3回・空列はK単体・連続移動3枚まで'},
+    4: {name:'激むず', draw:1, redeals:0, hints:2, undos:1, glow:false, lockFoundation:true, maxRun:2, emptyKingSingle:true, autoFoundation:false, desc:'ヒント2回・空列はK単体・連続移動2枚まで'},
+    5: {name:'ねこ神級', draw:1, redeals:0, hints:2, undos:0, glow:false, lockFoundation:true, maxRun:1, emptyKingSingle:true, autoFoundation:false, desc:'ヒント2回・やり直しなし・1枚ずつ移動・空列はK単体'}
   };
 
   const els = {
@@ -180,74 +180,69 @@
     return order;
   }
 
-  function distributeAllHidden(hiddenOrder) {
-    // 7列合計52枚。
-    // 表向きブロッカー1枚ずつを含めた最終枚数:
-    // 7・7・7・7・8・8・8 = 52
-    // hidden capacities:
-    // 6・6・6・6・7・7・7 = 45
-    const capacities = [6,6,6,6,7,7,7];
+
+  function distributeAllHidden(hiddenOrder, blockers) {
+    // 最終的な列枚数は 7・7・7・7・8・8・8 だが、
+    // どの列が8枚になるかは毎回変える。
+    const capacities = shuffledCopy([6,6,6,6,7,7,7]);
     const orders = Array.from({length:7}, () => []);
+    const kingCol = blockers.findIndex(c => c.rank === 13);
 
-    // Kの下（0列目）は最後まで開きにくいので、
-    // 解法の末尾側6枚だけを割り当てる。
-    const lateForKingColumn = hiddenOrder.slice(-capacities[0]);
-    const early = hiddenOrder.slice(0, hiddenOrder.length - capacities[0]);
-    orders[0].push(...lateForKingColumn);
+    // Kの下は最も開くのが遅いので、解法の末尾側だけを入れる。
+    const kingDepth = capacities[kingCol];
+    const lateForKing = hiddenOrder.slice(-kingDepth);
+    const early = hiddenOrder.slice(0, hiddenOrder.length - kingDepth);
+    orders[kingCol].push(...lateForKing);
 
-    // 1〜6列へ、解法順を壊さず均等に配る。
-    let colCursor = 1;
+    const usableCols = [0,1,2,3,4,5,6].filter(c => c !== kingCol);
+
+    // グローバルな解法順は維持しながら、列の選択をランダム化。
+    // 各列の露出順は解法順の部分列になるので、必ず進める経路を残せる。
     for (const card of early) {
-      let attempts = 0;
-      while (attempts < 12) {
-        const col = colCursor;
-        colCursor++;
-        if (colCursor > 6) colCursor = 1;
-        attempts++;
-        if (orders[col].length >= capacities[col]) continue;
+      const available = usableCols.filter(c => orders[c].length < capacities[c]);
+      const minRatio = Math.min(...available.map(c => orders[c].length / capacities[c]));
+      let candidates = available.filter(c => (orders[c].length / capacities[c]) <= minRatio + 0.26);
 
-        const last = orders[col][orders[col].length - 1];
-        // 同じマークが縦に固まりすぎないよう、可能なら別マークへ。
-        if (last?.suit === card.suit) {
-          const alternative = [1,2,3,4,5,6].find(c =>
-            orders[c].length < capacities[c] &&
-            orders[c][orders[c].length - 1]?.suit !== card.suit
-          );
-          if (alternative != null) {
-            orders[alternative].push(card);
-            break;
-          }
-        }
+      const differentSuit = candidates.filter(c => {
+        const last = orders[c][orders[c].length - 1];
+        return !last || last.suit !== card.suit;
+      });
+      if (differentSuit.length) candidates = differentSuit;
 
-        orders[col].push(card);
-        break;
-      }
+      // 同じ数字も縦に固まりにくくする。
+      const differentRank = candidates.filter(c => {
+        const last = orders[c][orders[c].length - 1];
+        return !last || last.rank !== card.rank;
+      });
+      if (differentRank.length) candidates = differentRank;
+
+      const col = candidates[Math.floor(Math.random() * candidates.length)];
+      orders[col].push(card);
     }
 
     return orders;
   }
 
   // 52枚すべてを場札へ。
-  // 最初の表札は K→Q→J→10→9→8→7 の赤黒交互。
-  // これを1本にまとめると下場が開き、そこからは隠れた解法順に掘れる。
+  // 最初の K→Q→J→10→9→8→7 は列位置を毎回シャッフルし、
+  // 一見して正解の順番が分からない配置にする。
   function makeNewState(level) {
     const blockerSuits = alternatingBlockerSuits();
     const blockerRanks = [13,12,11,10,9,8,7];
-    const blockers = blockerRanks.map((rank, i) => makeCard(blockerSuits[i], rank, true));
+    const chainBlockers = blockerRanks.map((rank, i) => makeCard(blockerSuits[i], rank, true));
+    const blockers = shuffledCopy(chainBlockers);
 
-    const hiddenOrder = buildGuaranteedHiddenOrder(blockers);
-    const hiddenOrders = distributeAllHidden(hiddenOrder);
+    const hiddenOrder = buildGuaranteedHiddenOrder(chainBlockers);
+    const hiddenOrders = distributeAllHidden(hiddenOrder, blockers);
 
     const tableau = Array.from({length:7}, (_, col) => {
-      // hiddenOrders[col] は「露出する順」。
-      // 物理配置では逆順に積む。
       const hiddenPhysical = hiddenOrders[col].slice().reverse();
       hiddenPhysical.forEach(c => c.faceUp = false);
       return [...hiddenPhysical, blockers[col]];
     });
 
     return {
-      version: 8,
+      version: 9,
       difficulty: level,
       stock: [],
       waste: [],
@@ -273,7 +268,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 8 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 9 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -287,7 +282,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('52枚ぜんぶ場札だにゃ', `${DIFFICULTIES[level].name}で開始。7列すべて深く配ってあるよ。右上へ急いで上げるより、下の札を開ける順番が重要。`);
+    setHelper('複雑モードだにゃ', `${DIFFICULTIES[level].name}で開始。52枚すべて場札。表札の位置も毎回変わるよ。ヒントは使えるけど、下の札を開ける順番が重要。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -363,6 +358,20 @@
     return true;
   }
 
+
+  function canSelectRun(cards) {
+    if (!validRun(cards)) return false;
+    const cfg = DIFFICULTIES[state.difficulty];
+    return cards.length <= cfg.maxRun;
+  }
+
+  function canMoveRunToTableau(cards, dest) {
+    if (!canSelectRun(cards)) return false;
+    const cfg = DIFFICULTIES[state.difficulty];
+    if (!dest.length && cfg.emptyKingSingle && cards.length !== 1) return false;
+    return canPlaceOnTableau(cards[0], dest);
+  }
+
   function getSelectedCards() {
     if (!selected) return [];
     if (selected.type === 'waste') return state.waste.length ? [topCard(state.waste)] : [];
@@ -381,9 +390,10 @@
     }
     selected = source;
     const cards = getSelectedCards();
-    if (!cards.length || !validRun(cards)) {
+    if (!cards.length || !canSelectRun(cards)) {
       selected = null;
-      setHelper('そのカードは動かせないにゃ', '表向きで、順番につながったカードを選んでね。');
+      const maxRun = DIFFICULTIES[state.difficulty].maxRun;
+      setHelper('その並びは動かせないにゃ', `この難易度は連続移動が最大${maxRun}枚。表向きの赤黒交互・連番を選んでね。`);
     } else {
       setHelper('選択したにゃ', `${rankLabel(cards[0].rank)}${suitSymbol(cards[0])} をどこへ動かす？`);
     }
@@ -409,8 +419,10 @@
   function moveToTableau(destCol) {
     if (!selected) return;
     const cards = getSelectedCards();
-    if (!cards.length || !validRun(cards) || !canPlaceOnTableau(cards[0], state.tableau[destCol])) {
-      setHelper('そこには置けないにゃ', '色を交互にして、数字を1つずつ小さく並べるよ。空列はKだけ。');
+    if (!cards.length || !canMoveRunToTableau(cards, state.tableau[destCol])) {
+      const cfg = DIFFICULTIES[state.difficulty];
+      const emptyRule = cfg.emptyKingSingle ? '空列はKを1枚だけ。' : '空列はKから。';
+      setHelper('そこには置けないにゃ', `赤黒交互で数字を1つずつ小さく。連続移動は最大${cfg.maxRun}枚。 ${emptyRule}`);
       return;
     }
     if (selected.type === 'tableau' && selected.col === destCol) { selected = null; render(); return; }
@@ -451,7 +463,7 @@
   }
 
   function tryAutoFoundation() {
-    if (!selected) return false;
+    if (!selected || !DIFFICULTIES[state.difficulty].autoFoundation) return false;
     const cards = getSelectedCards();
     if (cards.length !== 1) return false;
     const target = state.foundations.findIndex(f => canPlaceOnFoundation(cards[0], f));
@@ -496,7 +508,7 @@
         if (!validRun(run)) continue;
         for (let d = 0; d < 7; d++) {
           if (d === c) continue;
-          if (canPlaceOnTableau(run[0], state.tableau[d])) return true;
+          if (canMoveRunToTableau(run, state.tableau[d])) return true;
         }
       }
     }
@@ -518,7 +530,7 @@
     state.gameOver = true;
     selected = null;
     saveGame();
-    setHelper('ゲームオーバーだにゃ', '山札は1周で終了。動かせるカードがなくなったよ。1手戻すか、新しいゲームで再挑戦しよう。');
+    setHelper('ゲームオーバーだにゃ', '場札にも組札にも合法手がなくなったよ。ヒントを使い切っていなければ手順を見直して再挑戦しよう。');
     if (els.gameOverUndo) els.gameOverUndo.disabled = undoStack.length === 0 || DIFFICULTIES[state.difficulty].undos === 0;
     if (els.gameOverSheet) openSheet(els.gameOverSheet);
   }
@@ -538,7 +550,7 @@
 
     const move = findHintMove();
     if (!move) {
-      setHelper('動ける手が見つからないにゃ', state.stock.length ? '山札をめくってみよう。' : '山札の再利用ができるか確認してね。');
+      setHelper('ヒント候補が見つからないにゃ', '場札の移動か、右上へ上げられるカードがないか見直してみよう。');
       return;
     }
 
@@ -568,7 +580,7 @@
         if (!validRun(run)) continue;
         for (let d=0;d<7;d++) {
           if (d===c) continue;
-          if (canPlaceOnTableau(run[0], state.tableau[d])) {
+          if (canMoveRunToTableau(run, state.tableau[d])) {
             const exposes = i > 0 && !col[i-1].faceUp;
             if (exposes || run[0].rank === 13) return {text:`${c+1}列目の ${rankLabel(run[0].rank)}${suitSymbol(run[0])} からを${d+1}列目へ。`, selector:`[data-col="${c}"][data-index="${i}"]`};
           }
@@ -860,7 +872,7 @@
       selected = prev;
       return cards;
     })();
-    if (!sourceCards.length || !validRun(sourceCards)) {
+    if (!sourceCards.length || !canSelectRun(sourceCards)) {
       cleanupDrag();
       return;
     }
