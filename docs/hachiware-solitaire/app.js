@@ -4,7 +4,7 @@
   const SUITS = ['♠', '♥', '♣', '♦'];
   const SUIT_KEYS = ['S', 'H', 'C', 'D'];
   const RANKS = {1:'A',11:'J',12:'Q',13:'K'};
-  const STORAGE_KEY = 'hachiware-solitaire-state-v19';
+  const STORAGE_KEY = 'hachiware-solitaire-state-v20';
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
@@ -269,7 +269,7 @@
     stock.forEach(card => card.faceUp = false);
 
     return {
-      version: 19,
+      version: 20,
       difficulty: Number(level),
       stock,
       waste: [],
@@ -295,7 +295,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 19 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 20 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -309,7 +309,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('通常トランプ版だにゃ', `${DIFFICULTIES[level].name}で開始。A〜10は通常のトランプ配置、J・Q・Kも一般的な英米式トランプの絵札に統一したよ。`);
+    setHelper('52枚すべて標準トランプだにゃ', `${DIFFICULTIES[level].name}で開始。カード表面は52枚すべて標準トランプSVGそのものを表示。J・Q・Kも実際の絵札画像だよ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -829,6 +829,14 @@
     return `<span class="classic-face">${topCorner}<span class="classic-center">${center}</span>${bottomCorner}</span>`;
   }
 
+  function realCardFace(card) {
+    return `<img class="real-card-image" src="cards/${card.suit}${card.rank}.svg" alt="">`;
+  }
+
+  function realCardBack() {
+    return '<img class="real-card-image real-card-back" src="cards/BACK.svg" alt="">';
+  }
+
   function cardButton(card, meta, topPx = 0) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -838,9 +846,9 @@
     Object.entries(meta).forEach(([k,v]) => btn.dataset[k] = String(v));
 
     if (card.faceUp) {
-      btn.innerHTML = classicCardFace(card);
+      btn.innerHTML = realCardFace(card);
     } else {
-      btn.innerHTML = catBackArt();
+      btn.innerHTML = realCardBack();
     }
 
     if (isSelectedMeta(meta)) btn.classList.add('selected');
@@ -872,7 +880,7 @@
     els.stock.classList.toggle('has-cards', state.stock.length > 0);
     els.stock.classList.toggle('empty', state.stock.length === 0);
     els.stock.setAttribute('aria-label', state.stock.length ? `山札 ${state.stock.length}枚` : '空の山札');
-    if (state.stock.length) els.stock.innerHTML = catBackArt();
+    if (state.stock.length) els.stock.innerHTML = realCardBack();
     if (els.drawNext) {
       els.drawNext.disabled = state.stock.length === 0;
       els.drawNext.textContent = state.stock.length ? `次をめくる ${state.stock.length}` : '山札終了';

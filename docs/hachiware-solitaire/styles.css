@@ -10,7 +10,7 @@
   --black: #1b1b1d;
   --accent: #f2c96d;
   --card-w: clamp(42px, 12.25vw, 74px);
-  --card-h: calc(var(--card-w) * 1.42);
+  --card-h: calc(var(--card-w) * 1.4);
   --gap: clamp(3px, 1vw, 8px);
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
 }
@@ -610,4 +610,33 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   width: 108%;
   height: 112%;
   display: block;
+}
+
+/* real-standard-deck-v20 */
+.card.face-up,
+.card.face-down,
+.stock.has-cards {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: hidden;
+}
+.card.face-up::after,
+.card.face-down::before,
+.card.face-down::after,
+.stock.has-cards::before,
+.stock.has-cards::after {
+  display: none !important;
+  content: none !important;
+}
+.real-card-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: fill;
+  border-radius: 8px;
+  pointer-events: none;
+  user-select: none;
 }
