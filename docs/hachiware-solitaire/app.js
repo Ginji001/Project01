@@ -130,20 +130,33 @@
     return result;
   }
 
-  function buildLowFoundationSequence(extraSixSuit) {
-    const next = Object.fromEntries(SUIT_KEYS.map(s => [s, 1]));
-    const max = Object.fromEntries(SUIT_KEYS.map(s => [s, 5]));
-    max[extraSixSuit] = 6;
-    const sequence = [];
 
-    while (sequence.length < 21) {
-      const available = SUIT_KEYS.filter(s => next[s] <= max[s]);
+  function buildBalancedHiddenSequence(blockers) {
+    const blocker7 = blockers.find(c => c.rank === 7);
+    const blocker8 = blockers.find(c => c.rank === 8);
+
+    // A〜6は全マークを下側へ。
+    // さらに、ブロッカーになっていない7を3枚＋8を1枚下側へ入れる。
+    // 合計28枚を場札の下にバランスよく配置する。
+    const maxRank = Object.fromEntries(SUIT_KEYS.map(s => [s, 6]));
+    for (const suit of SUIT_KEYS) {
+      if (suit !== blocker7.suit) maxRank[suit] = 7;
+    }
+    const eightChoices = SUIT_KEYS.filter(s => s !== blocker8.suit && maxRank[s] >= 7);
+    const extraEightSuit = eightChoices[Math.floor(Math.random() * eightChoices.length)];
+    maxRank[extraEightSuit] = 8;
+
+    const next = Object.fromEntries(SUIT_KEYS.map(s => [s, 1]));
+    const sequence = [];
+    while (sequence.length < 28) {
+      const available = SUIT_KEYS.filter(s => next[s] <= maxRank[s]);
       let choices = available;
       const last = sequence[sequence.length - 1];
       if (last && available.length > 1) {
-        const other = available.filter(s => s !== last.suit);
-        if (other.length) choices = other;
+        const different = available.filter(s => s !== last.suit);
+        if (different.length) choices = different;
       }
+      // 同じランク帯に偏らないよう、候補の中からランダム。
       const suit = choices[Math.floor(Math.random() * choices.length)];
       sequence.push(makeCard(suit, next[suit]++, false));
     }
@@ -151,56 +164,77 @@
   }
 
   function distributeHiddenSequence(sequence) {
-    // hidden capacities under the 7 blockers: 0,1,2,3,4,5,6 = 21
-    const capacities = [0,1,2,3,4,5,6];
+    // 各列の「ブロッカーの下」の枚数を 1〜7 枚にする。
+    // 表札を含めると 2・3・4・5・6・7・8枚。
+    const capacities = [1,2,3,4,5,6,7];
     const exposureOrders = Array.from({length:7}, () => []);
-    for (const card of sequence) {
+
+    sequence.forEach((card, seqIndex) => {
       const candidates = capacities
         .map((cap, col) => ({col, room:cap - exposureOrders[col].length}))
         .filter(x => x.room > 0);
 
-      // Favor columns with more remaining depth; makes useful cards less predictable.
-      const weighted = [];
-      for (const x of candidates) for (let n = 0; n < x.room; n++) weighted.push(x.col);
-      const col = weighted[Math.floor(Math.random() * weighted.length)];
-      exposureOrders[col].push(card);
-    }
+      // 深い列だけに重要札が偏らないよう、残り容量＋現在の深さを均す。
+      const minDepth = Math.min(...candidates.map(x => exposureOrders[x.col].length / capacities[x.col]));
+      let balanced = candidates.filter(x =>
+        (exposureOrders[x.col].length / capacities[x.col]) <= minDepth + 0.24
+      );
+      if (!balanced.length) balanced = candidates;
+
+      // 序盤のカードは複数列に散らす。
+      if (seqIndex < 12) {
+        const shallower = balanced.filter(x => exposureOrders[x.col].length <= 2);
+        if (shallower.length) balanced = shallower;
+      }
+
+      const pick = balanced[Math.floor(Math.random() * balanced.length)].col;
+      exposureOrders[pick].push(card);
+    });
+
     return exposureOrders;
   }
 
-  // K→Q→J→10→9→8→7 の表向き連鎖をまず解かないと、
-  // 21枚の裏向きカードへアクセスしにくい構成。解法は必ず存在する。
   function makeNewState(level) {
     const blockerSuits = alternatingBlockerSuits();
     const blockerRanks = [13,12,11,10,9,8,7];
     const blockers = blockerRanks.map((rank, i) => makeCard(blockerSuits[i], rank, true));
-    const blockerIds = new Set(blockers.map(c => c.id));
 
-    // A〜5全種 + 6を1枚だけ場札の裏へ。
-    // 残りの6と7〜Kは山札/ブロッカーに分散する。
-    const extraSixSuitChoices = SUIT_KEYS.filter(s => !blockerIds.has(`${s}6`));
-    const extraSixSuit = extraSixSuitChoices[Math.floor(Math.random() * extraSixSuitChoices.length)];
-    const lowSequence = buildLowFoundationSequence(extraSixSuit);
-    const hiddenOrders = distributeHiddenSequence(lowSequence);
+    // 下側に28枚を配る。A〜6中心＋7/8を少量混ぜる。
+    const hiddenSequence = buildBalancedHiddenSequence(blockers);
+    const hiddenOrders = distributeHiddenSequence(hiddenSequence);
 
     const tableau = Array.from({length:7}, (_, col) => {
+      // exposureOrders の先頭から順にめくれるよう、物理配置は逆順。
       const hiddenPhysical = hiddenOrders[col].slice().reverse();
       hiddenPhysical.forEach(c => c.faceUp = false);
       return [...hiddenPhysical, blockers[col]];
     });
 
-    // 山札の正解順。
-    // まず場札に無い6を処理し、その後は各ランクで
-    // 「山札にある同ランク → 場札ブロッカー」の順に進めれば必ずクリアできる。
-    const desiredRemovalOrder = [];
-    for (const suit of shuffledCopy(SUIT_KEYS)) {
-      if (suit !== extraSixSuit) desiredRemovalOrder.push(makeCard(suit, 6, false));
+    // 場札に使った35枚を除いた17枚だけを山札へ。
+    // ランクが上がる流れを壊さないよう、低いランクから取り出せる順に並べる。
+    const usedIds = new Set();
+    for (const col of tableau) for (const card of col) usedIds.add(card.id);
+
+    const remaining = [];
+    for (const suit of SUIT_KEYS) {
+      for (let rank = 1; rank <= 13; rank++) {
+        const id = `${suit}${rank}`;
+        if (!usedIds.has(id)) remaining.push(makeCard(suit, rank, false));
+      }
     }
 
-    for (let rank = 7; rank <= 13; rank++) {
-      const blocker = blockers.find(c => c.rank === rank);
-      const nonBlockers = shuffledCopy(SUIT_KEYS.filter(s => !blocker || s !== blocker.suit));
-      for (const suit of nonBlockers) desiredRemovalOrder.push(makeCard(suit, rank, false));
+    remaining.sort((a,b) => a.rank - b.rank || Math.random() - .5);
+
+    // 同じランク内はシャッフルしつつ、同一マーク連続を少し避ける。
+    const desiredRemovalOrder = [];
+    for (let rank = 1; rank <= 13; rank++) {
+      let group = shuffledCopy(remaining.filter(c => c.rank === rank));
+      while (group.length) {
+        const last = desiredRemovalOrder[desiredRemovalOrder.length - 1];
+        let idx = group.findIndex(c => !last || c.suit !== last.suit);
+        if (idx < 0) idx = 0;
+        desiredRemovalOrder.push(group.splice(idx,1)[0]);
+      }
     }
 
     const drawCount = DIFFICULTIES[level].draw;
@@ -212,7 +246,7 @@
     stock.forEach(c => c.faceUp = false);
 
     return {
-      version: 5,
+      version: 6,
       difficulty: level,
       stock,
       waste: [],
@@ -238,7 +272,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 5 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 6 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -252,7 +286,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('かなり手強くしたにゃ', `${DIFFICULTIES[level].name}で開始。最初の表札は連鎖を組み替えて裏札を開ける必要があるよ。山札は1周だけ。`);
+    setHelper('下の札まで考えるにゃ', `${DIFFICULTIES[level].name}で開始。場札は35枚。下に埋まった札を開ける順番と山札17枚の使い方が重要だよ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -653,8 +687,8 @@
 
   function renderTableau() {
     els.tableau.innerHTML = '';
-    const step = Math.min(30, Math.max(21, window.innerWidth * 0.06));
-    const faceDownStep = Math.max(13, step * .62);
+    const step = Math.min(34, Math.max(24, window.innerWidth * 0.066));
+    const faceDownStep = Math.max(17, step * .72);
 
     state.tableau.forEach((col, colIndex) => {
       const column = document.createElement('div');

@@ -109,7 +109,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .foundation-slot { border: 1.5px dashed rgba(255,255,255,.48); background: rgba(255,255,255,.06); }
 .foundation-slot::before { content: attr(data-suit); position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,255,255,.23); font-size: calc(var(--card-w) * .48); }
 
-.tableau { display: grid; grid-template-columns: repeat(7, var(--card-w)); gap: var(--gap); min-height: 365px; align-items: start; }
+.tableau { display: grid; grid-template-columns: repeat(7, var(--card-w)); gap: var(--gap); min-height: 455px; align-items: start; }
 .tableau-column { position: relative; min-height: var(--card-h); border-radius: 7px; }
 .tableau-column::before { content: ""; position: absolute; inset: 0 auto auto 0; width: var(--card-w); height: var(--card-h); border: 1.5px dashed rgba(255,255,255,.28); border-radius: 7px; }
 
