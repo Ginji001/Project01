@@ -432,3 +432,62 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .waste {
   overflow: visible;
 }
+
+/* single-left-draw-v14 */
+.top-row {
+  display: grid;
+  grid-template-columns: var(--card-w) 1fr auto;
+  gap: var(--gap);
+  align-items: end;
+  margin-bottom: 10px;
+}
+.draw-wrap {
+  display: flex !important;
+}
+.single-draw-pile {
+  position: relative;
+  width: var(--card-w);
+  height: calc(var(--card-h) + 24px);
+}
+.single-draw-pile .stock,
+.single-draw-pile .waste {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.single-draw-pile .waste {
+  z-index: 4;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+}
+.single-draw-pile .waste.has-card {
+  pointer-events: auto;
+}
+.single-draw-pile .waste:not(.has-card) {
+  display: none;
+}
+.draw-next-btn {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--card-w);
+  min-height: 21px;
+  border: 0;
+  border-radius: 999px;
+  padding: 2px 3px;
+  background: rgba(255,255,255,.9);
+  color: var(--felt);
+  font-size: 8px;
+  font-weight: 800;
+  z-index: 8;
+}
+.draw-next-btn:disabled {
+  opacity: .58;
+}
+.top-row > .top-spacer {
+  display: block;
+}
+.foundations {
+  grid-column: 3;
+}

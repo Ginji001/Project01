@@ -42,14 +42,14 @@
     </section>
 
     <main class="game-area" id="gameArea" aria-label="ソリティア盤面">
-      <section class="top-row" aria-label="山札と組札">
-        <div class="pile-wrap">
-          <span class="pile-label">山札</span>
-          <button class="pile stock" id="stockPile" type="button" aria-label="山札"></button>
-        </div>
-        <div class="pile-wrap">
-          <span class="pile-label">捨て札</span>
-          <button class="pile waste" id="wastePile" type="button" aria-label="捨て札"></button>
+      <section class="top-row" aria-label="めくる札と組札">
+        <div class="pile-wrap draw-wrap">
+          <span class="pile-label">めくる札</span>
+          <div class="single-draw-pile">
+            <button class="pile stock" id="stockPile" type="button" aria-label="次のカードをめくる"></button>
+            <button class="pile waste" id="wastePile" type="button" aria-label="めくったカード"></button>
+            <button class="draw-next-btn" id="drawNextBtn" type="button">次をめくる</button>
+          </div>
         </div>
         <div class="top-spacer"></div>
         <div class="foundations" id="foundations" aria-label="組札"></div>

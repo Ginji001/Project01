@@ -4,7 +4,7 @@
   const SUITS = ['♠', '♥', '♣', '♦'];
   const SUIT_KEYS = ['S', 'H', 'C', 'D'];
   const RANKS = {1:'A',11:'J',12:'Q',13:'K'};
-  const STORAGE_KEY = 'hachiware-solitaire-state-v13';
+  const STORAGE_KEY = 'hachiware-solitaire-state-v14';
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
@@ -18,6 +18,7 @@
   const els = {
     stock: document.getElementById('stockPile'),
     waste: document.getElementById('wastePile'),
+    drawNext: document.getElementById('drawNextBtn'),
     foundations: document.getElementById('foundations'),
     tableau: document.getElementById('tableau'),
     difficulty: document.getElementById('difficultyLabel'),
@@ -263,7 +264,7 @@
     stock.forEach(card => card.faceUp = false);
 
     return {
-      version: 13,
+      version: 14,
       difficulty: Number(level),
       stock,
       waste: [],
@@ -289,7 +290,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 13 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 14 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -303,7 +304,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('場札と山札を均等に使うにゃ', `${DIFFICULTIES[level].name}で開始。場札42枚＋左上の山札10枚。山札にも低・中・高ランクと4マークを分散してあるよ。山札は1周だけ。`);
+    setHelper('左上は1つだけだにゃ', `${DIFFICULTIES[level].name}で開始。左上のめくる札は1か所だけ。表向きカードも同じ場所に重なるよ。右側の捨て札の山は無し。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -761,11 +762,16 @@
     els.stock.classList.toggle('empty', state.stock.length === 0);
     els.stock.setAttribute('aria-label', state.stock.length ? `山札 ${state.stock.length}枚` : '空の山札');
     if (state.stock.length) els.stock.innerHTML = catBackArt();
+    if (els.drawNext) {
+      els.drawNext.disabled = state.stock.length === 0;
+      els.drawNext.textContent = state.stock.length ? `次をめくる ${state.stock.length}` : '山札終了';
+    }
   }
 
   function renderWaste() {
     els.waste.innerHTML = '';
     const card = topCard(state.waste);
+    els.waste.classList.toggle('has-card', !!card);
     if (card) els.waste.appendChild(cardButton(card, {source:'waste'}));
   }
 
@@ -1066,6 +1072,7 @@
 
   function setupEvents() {
     document.getElementById('gameArea').addEventListener('click', handleGameClick);
+    if (els.drawNext) els.drawNext.addEventListener('click', e => { e.stopPropagation(); drawFromStock(); });
     setupPointerDrag();
     els.undo.addEventListener('click', undo);
     els.hint.addEventListener('click', hint);
