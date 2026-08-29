@@ -131,87 +131,89 @@
   }
 
 
-  function buildBalancedHiddenSequence(blockers) {
-    const blocker7 = blockers.find(c => c.rank === 7);
-    const blocker8 = blockers.find(c => c.rank === 8);
 
-    // A〜6は全マークを下側へ。
-    // さらに、ブロッカーになっていない7を3枚＋8を1枚下側へ入れる。
-    // 合計28枚を場札の下にバランスよく配置する。
-    const maxRank = Object.fromEntries(SUIT_KEYS.map(s => [s, 6]));
+  function buildMaximumTableauHidden(blockers) {
+    const blockerIds = new Set(blockers.map(c => c.id));
+
+    // 場札45枚 = 表向きブロッカー7枚 + 裏向き38枚。
+    // 裏向きには A〜10 のほぼ全て + Jを2枚まで入れる。
+    const hidden = [];
     for (const suit of SUIT_KEYS) {
-      if (suit !== blocker7.suit) maxRank[suit] = 7;
-    }
-    const eightChoices = SUIT_KEYS.filter(s => s !== blocker8.suit && maxRank[s] >= 7);
-    const extraEightSuit = eightChoices[Math.floor(Math.random() * eightChoices.length)];
-    maxRank[extraEightSuit] = 8;
-
-    const next = Object.fromEntries(SUIT_KEYS.map(s => [s, 1]));
-    const sequence = [];
-    while (sequence.length < 28) {
-      const available = SUIT_KEYS.filter(s => next[s] <= maxRank[s]);
-      let choices = available;
-      const last = sequence[sequence.length - 1];
-      if (last && available.length > 1) {
-        const different = available.filter(s => s !== last.suit);
-        if (different.length) choices = different;
+      for (let rank = 1; rank <= 10; rank++) {
+        const id = `${suit}${rank}`;
+        if (!blockerIds.has(id)) hidden.push(makeCard(suit, rank, false));
       }
-      // 同じランク帯に偏らないよう、候補の中からランダム。
-      const suit = choices[Math.floor(Math.random() * choices.length)];
-      sequence.push(makeCard(suit, next[suit]++, false));
     }
-    return sequence;
+
+    const blockerJ = blockers.find(c => c.rank === 11);
+    const jCandidates = shuffledCopy(SUIT_KEYS.filter(s => s !== blockerJ.suit));
+    hidden.push(makeCard(jCandidates[0], 11, false));
+    hidden.push(makeCard(jCandidates[1], 11, false));
+
+    return hidden;
   }
 
-  function distributeHiddenSequence(sequence) {
-    // 各列の「ブロッカーの下」の枚数を 1〜7 枚にする。
-    // 表札を含めると 2・3・4・5・6・7・8枚。
-    const capacities = [1,2,3,4,5,6,7];
-    const exposureOrders = Array.from({length:7}, () => []);
+  function distributeMaximumTableau(hidden, releaseSuit) {
+    // ブロッカーを含めた最終列枚数:
+    // 5・6・6・7・7・7・7 = 45枚
+    // hidden capacities:
+    // 4・5・5・6・6・6・6 = 38枚
+    const capacities = [4,5,5,6,6,6,6];
+    const orders = Array.from({length:7}, () => []);
 
-    sequence.forEach((card, seqIndex) => {
-      const candidates = capacities
-        .map((cap, col) => ({col, room:cap - exposureOrders[col].length}))
-        .filter(x => x.room > 0);
+    // まず第2列を A→2→3→4→5 の「解放列」にする。
+    // 表のQをKへ移したあと、この列を確実に空にでき、
+    // Kから始まるブロッカー連鎖を移して第1列も開放できる。
+    const releaseCards = [];
+    for (let rank = 1; rank <= 5; rank++) {
+      const idx = hidden.findIndex(c => c.suit === releaseSuit && c.rank === rank);
+      if (idx >= 0) releaseCards.push(hidden.splice(idx, 1)[0]);
+    }
+    orders[1].push(...releaseCards);
 
-      // 深い列だけに重要札が偏らないよう、残り容量＋現在の深さを均す。
-      const minDepth = Math.min(...candidates.map(x => exposureOrders[x.col].length / capacities[x.col]));
-      let balanced = candidates.filter(x =>
-        (exposureOrders[x.col].length / capacities[x.col]) <= minDepth + 0.24
-      );
-      if (!balanced.length) balanced = candidates;
+    // 残りはランク昇順を維持しつつ、各列の深さが均等になるよう分散。
+    hidden.sort((a,b) => a.rank - b.rank || Math.random() - .5);
+    const targetCols = [0,2,3,4,5,6];
 
-      // 序盤のカードは複数列に散らす。
-      if (seqIndex < 12) {
-        const shallower = balanced.filter(x => exposureOrders[x.col].length <= 2);
-        if (shallower.length) balanced = shallower;
-      }
+    for (const card of hidden) {
+      const available = targetCols.filter(col => orders[col].length < capacities[col]);
+      const minRatio = Math.min(...available.map(col => orders[col].length / capacities[col]));
+      let balanced = available.filter(col => (orders[col].length / capacities[col]) <= minRatio + 0.18);
 
-      const pick = balanced[Math.floor(Math.random() * balanced.length)].col;
-      exposureOrders[pick].push(card);
-    });
+      // 同じマークが同じ列に連続しすぎないようにする。
+      const differentSuit = balanced.filter(col => {
+        const last = orders[col][orders[col].length - 1];
+        return !last || last.suit !== card.suit;
+      });
+      if (differentSuit.length) balanced = differentSuit;
 
-    return exposureOrders;
+      const col = balanced[Math.floor(Math.random() * balanced.length)];
+      orders[col].push(card);
+    }
+
+    return orders;
   }
 
+  // 52枚中45枚を場札、山札は7枚だけにする。
+  // 場札を最大限使いつつ、K→Q→J→10→9→8→7 のブロッカー連鎖と
+  // 「解放列」を使うことで必ずクリア可能な経路を残す。
   function makeNewState(level) {
     const blockerSuits = alternatingBlockerSuits();
     const blockerRanks = [13,12,11,10,9,8,7];
     const blockers = blockerRanks.map((rank, i) => makeCard(blockerSuits[i], rank, true));
 
-    // 下側に28枚を配る。A〜6中心＋7/8を少量混ぜる。
-    const hiddenSequence = buildBalancedHiddenSequence(blockers);
-    const hiddenOrders = distributeHiddenSequence(hiddenSequence);
+    const hidden = buildMaximumTableauHidden(blockers);
+    const releaseSuit = shuffledCopy(SUIT_KEYS)[0];
+    const hiddenOrders = distributeMaximumTableau(hidden, releaseSuit);
 
     const tableau = Array.from({length:7}, (_, col) => {
-      // exposureOrders の先頭から順にめくれるよう、物理配置は逆順。
       const hiddenPhysical = hiddenOrders[col].slice().reverse();
       hiddenPhysical.forEach(c => c.faceUp = false);
       return [...hiddenPhysical, blockers[col]];
     });
 
-    // 場札に使った35枚を除いた17枚だけを山札へ。
-    // ランクが上がる流れを壊さないよう、低いランクから取り出せる順に並べる。
+    // 残りは7枚だけ。
+    // Jの残り1枚 + Qの非ブロッカー3枚 + Kの非ブロッカー3枚。
     const usedIds = new Set();
     for (const col of tableau) for (const card of col) usedIds.add(card.id);
 
@@ -223,18 +225,10 @@
       }
     }
 
-    remaining.sort((a,b) => a.rank - b.rank || Math.random() - .5);
-
-    // 同じランク内はシャッフルしつつ、同一マーク連続を少し避ける。
+    // Foundationで必要になる順に J → Q → K。
     const desiredRemovalOrder = [];
-    for (let rank = 1; rank <= 13; rank++) {
-      let group = shuffledCopy(remaining.filter(c => c.rank === rank));
-      while (group.length) {
-        const last = desiredRemovalOrder[desiredRemovalOrder.length - 1];
-        let idx = group.findIndex(c => !last || c.suit !== last.suit);
-        if (idx < 0) idx = 0;
-        desiredRemovalOrder.push(group.splice(idx,1)[0]);
-      }
+    for (let rank = 11; rank <= 13; rank++) {
+      desiredRemovalOrder.push(...shuffledCopy(remaining.filter(c => c.rank === rank)));
     }
 
     const drawCount = DIFFICULTIES[level].draw;
@@ -246,7 +240,7 @@
     stock.forEach(c => c.faceUp = false);
 
     return {
-      version: 6,
+      version: 7,
       difficulty: level,
       stock,
       waste: [],
@@ -272,7 +266,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 6 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 7 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -286,7 +280,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('下の札まで考えるにゃ', `${DIFFICULTIES[level].name}で開始。場札は35枚。下に埋まった札を開ける順番と山札17枚の使い方が重要だよ。`);
+    setHelper('場札を最大限使うにゃ', `${DIFFICULTIES[level].name}で開始。場札45枚・山札7枚。下の札を開ける順番が勝負だよ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -687,8 +681,8 @@
 
   function renderTableau() {
     els.tableau.innerHTML = '';
-    const step = Math.min(34, Math.max(24, window.innerWidth * 0.066));
-    const faceDownStep = Math.max(17, step * .72);
+    const step = Math.min(33, Math.max(23, window.innerWidth * 0.064));
+    const faceDownStep = Math.max(16, step * .68);
 
     state.tableau.forEach((col, colIndex) => {
       const column = document.createElement('div');
