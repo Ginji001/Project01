@@ -236,3 +236,69 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .toolbar button { font-size: 10px; }
   .status-bar strong { font-size: 13px; }
 }
+
+/* cat-theme-v2 */
+.mascot, .helper-card img, .win-card img {
+  object-fit: cover;
+  background: #dce9c8;
+}
+.stock.has-cards {
+  background: transparent;
+  overflow: hidden;
+  border: 0;
+}
+.stock.has-cards::before,
+.stock.has-cards::after,
+.card.face-down::before,
+.card.face-down::after,
+.foundation-slot::before { display: none !important; content: none !important; }
+.card.face-down {
+  background: transparent;
+  border: 0;
+  overflow: hidden;
+}
+.card-back-art {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: saturate(.94) contrast(1.02);
+}
+.card-center {
+  inset: 17% 8% 8%;
+  font-size: 0;
+  opacity: 1;
+  display: grid;
+  place-items: center;
+}
+.suit-art {
+  width: 86%;
+  height: 86%;
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.12));
+}
+.foundation-slot > .suit-art {
+  position: absolute;
+  inset: 17%;
+  width: 66%;
+  height: 66%;
+  opacity: .27;
+  filter: grayscale(.15);
+}
+.card-corner .suit {
+  font-size: calc(var(--card-w) * .20);
+}
+.card.face-up {
+  background:
+    radial-gradient(circle at 86% 82%, rgba(244,206,119,.15), transparent 18%),
+    linear-gradient(180deg,#fffdf7,#fffaf0);
+  border: 1px solid rgba(150,116,61,.18);
+}
+.card.face-up::after {
+  content: "🐾";
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  font-size: calc(var(--card-w) * .14);
+  opacity: .15;
+}

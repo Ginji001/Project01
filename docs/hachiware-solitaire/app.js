@@ -63,6 +63,19 @@
   function cardColor(card) { return (card.suit === 'H' || card.suit === 'D') ? 'red' : 'black'; }
   function rankLabel(rank) { return RANKS[rank] || String(rank); }
   function suitSymbol(card) { return SUITS[SUIT_KEYS.indexOf(card.suit)]; }
+
+  function catSuitArt(suit) {
+    const label = suit === 'S' ? 'スペード' : suit === 'H' ? 'ハート' : suit === 'C' ? 'クラブ' : 'ダイヤ';
+    if (suit === 'S') return '<svg class="suit-art" viewBox="0 0 100 100" role="img" aria-label="'+label+'"><path d="M50 5C40 22 14 35 14 57c0 15 11 25 25 25 6 0 11-2 15-6-2 9-6 15-12 19h16c-6-4-10-10-12-19 4 4 9 6 15 6 14 0 25-10 25-25C86 35 60 22 50 5z" fill="#1a1b1d"/><path d="M34 39l8-10 8 11 8-11 9 11-2 23c-2 14-9 21-15 21s-13-7-15-21z" fill="#fff7e8"/><path d="M42 29l8 11 8-11-8 4z" fill="#17181a"/><ellipse cx="39" cy="52" rx="8" ry="9" fill="#bde34b"/><ellipse cx="61" cy="52" rx="8" ry="9" fill="#bde34b"/><ellipse cx="39" cy="53" rx="4" ry="6" fill="#17221a"/><ellipse cx="61" cy="53" rx="4" ry="6" fill="#17221a"/><circle cx="36" cy="48" r="2" fill="#fff"/><circle cx="58" cy="48" r="2" fill="#fff"/><path d="M46 64l4-3 4 3-4 4z" fill="#f4a7aa"/><path d="M50 68c-3 4-7 5-10 3m10-3c3 4 7 5 10 3" fill="none" stroke="#573c3d" stroke-width="1.6" stroke-linecap="round"/><path d="M34 66H18m17 5H21m45-5h16m-17 5h14" stroke="#fff7e8" stroke-width="2" stroke-linecap="round"/></svg>';
+    if (suit === 'H') return '<svg class="suit-art" viewBox="0 0 100 100" role="img" aria-label="'+label+'"><path d="M50 91C42 78 13 63 13 36 13 20 24 10 38 10c8 0 14 4 18 10 4-6 10-10 18-10 14 0 25 10 25 26 0 27-29 42-49 55z" fill="#d94750"/><path d="M31 32l9-10 10 10 10-10 10 10-3 25c-2 13-9 21-17 21s-15-8-17-21z" fill="#1a1b1d"/><path d="M39 37l11-9 11 9v25c-3 9-7 13-11 13s-8-4-11-13z" fill="#fff7e8"/><ellipse cx="41" cy="47" rx="7" ry="8" fill="#bde34b"/><ellipse cx="59" cy="47" rx="7" ry="8" fill="#bde34b"/><ellipse cx="41" cy="48" rx="3.6" ry="5.5" fill="#17221a"/><ellipse cx="59" cy="48" rx="3.6" ry="5.5" fill="#17221a"/><path d="M46 59l4-3 4 3-4 4z" fill="#f4a7aa"/><circle cx="27" cy="64" r="10" fill="#fff7e8"/><circle cx="73" cy="64" r="10" fill="#fff7e8"/><circle cx="27" cy="64" r="4.5" fill="#f3a4a8"/><circle cx="73" cy="64" r="4.5" fill="#f3a4a8"/></svg>';
+    if (suit === 'C') return '<svg class="suit-art" viewBox="0 0 100 100" role="img" aria-label="'+label+'"><path d="M50 40c-5-19 6-31 20-31 14 0 24 10 24 23 0 11-7 19-16 22 10 2 17 10 17 21 0 13-10 23-24 23-10 0-18-5-21-13-3 8-11 13-21 13C15 98 5 88 5 75c0-11 7-19 17-21C13 51 6 43 6 32 6 19 16 9 30 9c14 0 25 12 20 31z" fill="#1a1b1d"/><path d="M45 66h10c1 12 5 21 12 29H33c7-8 11-17 12-29z" fill="#1a1b1d"/><g fill="#fff7e8"><circle cx="30" cy="31" r="13"/><circle cx="70" cy="31" r="13"/><circle cx="50" cy="67" r="13"/></g><g fill="#f3a4a8"><circle cx="30" cy="31" r="5"/><circle cx="70" cy="31" r="5"/><circle cx="50" cy="67" r="5"/></g><g fill="#f3a4a8"><circle cx="24" cy="23" r="2.6"/><circle cx="36" cy="23" r="2.6"/><circle cx="64" cy="23" r="2.6"/><circle cx="76" cy="23" r="2.6"/><circle cx="44" cy="59" r="2.6"/><circle cx="56" cy="59" r="2.6"/></g></svg>';
+    return '<svg class="suit-art" viewBox="0 0 100 100" role="img" aria-label="'+label+'"><path d="M50 4L94 50 50 96 6 50z" fill="#d94750"/><path d="M31 31l9-9 10 10 10-10 9 9-2 27c-1 14-8 23-17 23s-16-9-17-23z" fill="#1a1b1d"/><path d="M39 38l11-9 11 9v24c-2 10-7 15-11 15s-9-5-11-15z" fill="#fff7e8"/><ellipse cx="41" cy="48" rx="7" ry="8" fill="#bde34b"/><ellipse cx="59" cy="48" rx="7" ry="8" fill="#bde34b"/><ellipse cx="41" cy="49" rx="3.6" ry="5.5" fill="#17221a"/><ellipse cx="59" cy="49" rx="3.6" ry="5.5" fill="#17221a"/><path d="M46 60l4-3 4 3-4 4z" fill="#f4a7aa"/><path d="M24 62c5-9 12-10 17-4v13H28zM76 62c-5-9-12-10-17-4v13h13z" fill="#fff7e8"/><circle cx="33" cy="63" r="3" fill="#f3a4a8"/><circle cx="67" cy="63" r="3" fill="#f3a4a8"/></svg>';
+  }
+
+  function catBackArt() {
+    return '<svg class="card-back-art" viewBox="0 0 100 142" aria-hidden="true"><defs><pattern id="q" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="26" height="26" fill="#739061"/><path d="M0 0H26V26H0z" fill="none" stroke="#d8d5a8" stroke-width="1" stroke-dasharray="2 3"/></pattern></defs><rect x="1" y="1" width="98" height="140" rx="9" fill="#fff7e8"/><rect x="5" y="5" width="90" height="132" rx="7" fill="url(#q)" stroke="#d7bd82" stroke-width="1.4"/><g transform="translate(22 39) scale(.56)"><path d="M14 31L28 10l16 13 16-13 14 21-2 35c-2 18-14 30-28 30S18 84 16 66z" fill="#1b1b1d"/><path d="M32 36l12-10 12 10v35c-3 11-7 16-12 16s-9-5-12-16z" fill="#fff7e8"/><ellipse cx="34" cy="49" rx="8" ry="9" fill="#bde34b"/><ellipse cx="54" cy="49" rx="8" ry="9" fill="#bde34b"/><circle cx="34" cy="50" r="4" fill="#17221a"/><circle cx="54" cy="50" r="4" fill="#17221a"/><path d="M40 63l4-3 4 3-4 4z" fill="#f4a7aa"/></g><g fill="#f5c0b7" opacity=".95"><circle cx="18" cy="20" r="3"/><circle cx="14" cy="15" r="1.5"/><circle cx="18" cy="13" r="1.5"/><circle cx="22" cy="15" r="1.5"/><circle cx="82" cy="119" r="3"/><circle cx="78" cy="114" r="1.5"/><circle cx="82" cy="112" r="1.5"/><circle cx="86" cy="114" r="1.5"/></g><g font-size="11" font-family="serif" opacity=".9"><text x="75" y="27" fill="#1b1b1d">♠</text><text x="15" y="124" fill="#c33a49">♥</text><text x="77" y="126" fill="#1b1b1d">♣</text><text x="13" y="29" fill="#c33a49">♦</text></g></svg>';
+  }
+
   function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
   function freshDeck() {
@@ -408,7 +421,9 @@
     Object.entries(meta).forEach(([k,v]) => btn.dataset[k] = String(v));
 
     if (card.faceUp) {
-      btn.innerHTML = `<span class="card-corner"><span>${rankLabel(card.rank)}</span><span class="suit">${suitSymbol(card)}</span></span><span class="card-center">${suitSymbol(card)}</span>`;
+      btn.innerHTML = `<span class="card-corner"><span>${rankLabel(card.rank)}</span><span class="suit">${suitSymbol(card)}</span></span><span class="card-center">${catSuitArt(card.suit)}</span>`;
+    } else {
+      btn.innerHTML = catBackArt();
     }
 
     if (isSelectedMeta(meta)) btn.classList.add('selected');
@@ -440,6 +455,7 @@
     els.stock.classList.toggle('has-cards', state.stock.length > 0);
     els.stock.classList.toggle('empty', state.stock.length === 0);
     els.stock.setAttribute('aria-label', state.stock.length ? `山札 ${state.stock.length}枚` : '空の山札');
+    if (state.stock.length) els.stock.innerHTML = catBackArt();
   }
 
   function renderWaste() {
@@ -459,6 +475,7 @@
       slot.setAttribute('aria-label', `組札 ${i+1}`);
       const card = topCard(state.foundations[i]);
       if (card) slot.appendChild(cardButton(card, {source:'foundation', foundation:i}));
+      else slot.innerHTML = catSuitArt(SUIT_KEYS[i]);
       els.foundations.appendChild(slot);
     }
   }
