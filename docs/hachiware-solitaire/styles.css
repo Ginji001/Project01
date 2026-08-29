@@ -491,3 +491,109 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .foundations {
   grid-column: 3;
 }
+
+/* classic-cards-v17 */
+.card.face-up {
+  background: #fff !important;
+  border: 1px solid rgba(20,20,20,.16) !important;
+}
+.card.face-up::after {
+  display: none !important;
+  content: none !important;
+}
+.card.face-up .suit-art,
+.card.face-up .card-corner,
+.card.face-up .card-center {
+  display: none !important;
+}
+.classic-face {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: #fff;
+  border-radius: 7px;
+  overflow: hidden;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.classic-index {
+  position: absolute;
+  z-index: 5;
+  display: grid;
+  justify-items: center;
+  line-height: .83;
+  font-weight: 900;
+  letter-spacing: -.05em;
+}
+.classic-index-top {
+  top: 3px;
+  left: 4px;
+}
+.classic-index-bottom {
+  right: 4px;
+  bottom: 3px;
+  transform: rotate(180deg);
+}
+.classic-rank {
+  font-size: clamp(18px, calc(var(--card-w) * .37), 30px);
+}
+.classic-suit {
+  margin-top: 1px;
+  font-size: clamp(17px, calc(var(--card-w) * .34), 28px);
+}
+.classic-center {
+  position: absolute;
+  inset: 19% 8% 17%;
+  display: grid;
+  place-items: center;
+}
+.classic-ace {
+  font-size: clamp(40px, calc(var(--card-w) * .95), 76px);
+  line-height: 1;
+  font-weight: 700;
+}
+.classic-pips {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.classic-pip-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 13%;
+}
+.classic-pip-row-flip {
+  transform: rotate(180deg);
+}
+.classic-pip {
+  width: 33.333%;
+  display: inline-flex;
+  align-items: center;
+  font-size: clamp(17px, calc(var(--card-w) * .35), 29px);
+  line-height: 1;
+  font-weight: 700;
+}
+.classic-pip-l { justify-content: flex-start; }
+.classic-pip-c { justify-content: center; }
+.classic-pip-r { justify-content: flex-end; }
+.classic-court {
+  width: 90%;
+  height: 100%;
+  overflow: visible;
+}
+.foundation-standard-suit {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: calc(var(--card-w) * .58);
+  font-weight: 700;
+  opacity: .28;
+  pointer-events: none;
+}
+.foundation-standard-suit.red { color: #c33a49; }
+.foundation-standard-suit.black { color: #17191b; }

@@ -4,7 +4,7 @@
   const SUITS = ['♠', '♥', '♣', '♦'];
   const SUIT_KEYS = ['S', 'H', 'C', 'D'];
   const RANKS = {1:'A',11:'J',12:'Q',13:'K'};
-  const STORAGE_KEY = 'hachiware-solitaire-state-v16';
+  const STORAGE_KEY = 'hachiware-solitaire-state-v17';
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
@@ -269,7 +269,7 @@
     stock.forEach(card => card.faceUp = false);
 
     return {
-      version: 16,
+      version: 17,
       difficulty: Number(level),
       stock,
       waste: [],
@@ -295,7 +295,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 16 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 17 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -309,7 +309,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('7列ぜんぶ枚数が違うにゃ', `${DIFFICULTIES[level].name}で開始。下の場札は3・4・5・6・7・8・9枚を毎回ランダムな列順で配置。同じ枚数の列は1つもないよ。`);
+    setHelper('クラシックカード版だにゃ', `${DIFFICULTIES[level].name}で開始。下の場札は3・4・5・6・7・8・9枚を毎回ランダム配置。カードは通常のトランプ風で、文字とマークを大きくしたよ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -723,6 +723,78 @@
     queueMicrotask(checkGameOver);
   }
 
+  function pipLayout(rank) {
+    const layouts = {
+      2: [['c'],['c']],
+      3: [['c'],['c'],['c']],
+      4: [['l','r'],['l','r']],
+      5: [['l','r'],['c'],['l','r']],
+      6: [['l','r'],['l','r'],['l','r']],
+      7: [['c'],['l','r'],['c'],['l','r']],
+      8: [['c'],['l','r'],['l','r'],['c'],['l','r']],
+      9: [['l','r'],['l','r'],['c'],['l','r'],['l','r']],
+      10:[['l','r'],['c'],['l','r'],['l','r'],['c'],['l','r']]
+    };
+    return layouts[rank] || [];
+  }
+
+  function numberPips(card) {
+    return pipLayout(card.rank).map((row, rowIndex, all) => {
+      const flip = rowIndex >= Math.ceil(all.length / 2) ? ' pip-row-flip' : '';
+      return `<div class="classic-pip-row${flip}">${row.map(pos =>
+        `<span class="classic-pip classic-pip-${pos}">${suitSymbol(card)}</span>`
+      ).join('')}</div>`;
+    }).join('');
+  }
+
+  function courtArt(card) {
+    const suit = suitSymbol(card);
+    const rank = rankLabel(card.rank);
+    const accent = cardColor(card) === 'red' ? '#c72f3e' : '#151719';
+    const secondary = cardColor(card) === 'red' ? '#f0b51c' : '#d9a928';
+    const head = card.rank === 12
+      ? '<path d="M50 24c-8 0-14 6-14 14v7c0 8 6 14 14 14s14-6 14-14v-7c0-8-6-14-14-14z" fill="#fff6df" stroke="#111" stroke-width="2"/><path d="M37 31l4-12 9 8 9-8 4 12" fill="#f0b51c" stroke="#111" stroke-width="2"/>'
+      : '<path d="M50 24c-8 0-14 6-14 14v7c0 8 6 14 14 14s14-6 14-14v-7c0-8-6-14-14-14z" fill="#fff6df" stroke="#111" stroke-width="2"/><path d="M37 31l4-12 9 8 9-8 4 12" fill="#f0b51c" stroke="#111" stroke-width="2"/>';
+    const prop = card.rank === 13
+      ? '<path d="M70 28v47" stroke="#111" stroke-width="4"/><path d="M64 30h12l-6-10z" fill="#f0b51c" stroke="#111" stroke-width="2"/>'
+      : card.rank === 12
+      ? '<path d="M68 31c6 5 5 13-1 17" fill="none" stroke="#111" stroke-width="3"/><circle cx="70" cy="27" r="5" fill="#f0b51c" stroke="#111" stroke-width="2"/>'
+      : '<path d="M69 26v49" stroke="#111" stroke-width="3"/><path d="M65 25h8" stroke="#111" stroke-width="3"/>';
+    return `
+      <svg class="classic-court" viewBox="0 0 100 140" aria-hidden="true">
+        <g>
+          <rect x="22" y="15" width="56" height="110" rx="9" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          ${head}
+          <path d="M31 64l19-10 19 10 4 33H27z" fill="${accent}" stroke="#111" stroke-width="2"/>
+          <path d="M39 64l11 14 11-14" fill="${secondary}" stroke="#111" stroke-width="2"/>
+          <path d="M38 42h6m12 0h6" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+          <path d="M45 50c3 2 7 2 10 0" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+          ${prop}
+          <text x="50" y="92" text-anchor="middle" font-family="Georgia,serif" font-size="26" font-weight="700" fill="#fff">${suit}</text>
+        </g>
+        <g transform="translate(100 140) rotate(180)">
+          <rect x="22" y="15" width="56" height="110" rx="9" fill="none"/>
+          <text x="50" y="117" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="700" fill="${accent}">${rank}</text>
+        </g>
+      </svg>`;
+  }
+
+  function classicCardFace(card) {
+    const topCorner = `<span class="classic-index classic-index-top"><span class="classic-rank">${rankLabel(card.rank)}</span><span class="classic-suit">${suitSymbol(card)}</span></span>`;
+    const bottomCorner = `<span class="classic-index classic-index-bottom"><span class="classic-rank">${rankLabel(card.rank)}</span><span class="classic-suit">${suitSymbol(card)}</span></span>`;
+
+    let center = '';
+    if (card.rank === 1) {
+      center = `<span class="classic-ace">${suitSymbol(card)}</span>`;
+    } else if (card.rank <= 10) {
+      center = `<div class="classic-pips rank-${card.rank}">${numberPips(card)}</div>`;
+    } else {
+      center = courtArt(card);
+    }
+
+    return `<span class="classic-face">${topCorner}<span class="classic-center">${center}</span>${bottomCorner}</span>`;
+  }
+
   function cardButton(card, meta, topPx = 0) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -732,7 +804,7 @@
     Object.entries(meta).forEach(([k,v]) => btn.dataset[k] = String(v));
 
     if (card.faceUp) {
-      btn.innerHTML = `<span class="card-corner"><span>${rankLabel(card.rank)}</span><span class="suit">${suitSymbol(card)}</span></span><span class="card-center">${catSuitArt(card.suit)}</span>`;
+      btn.innerHTML = classicCardFace(card);
     } else {
       btn.innerHTML = catBackArt();
     }
@@ -791,7 +863,7 @@
       slot.setAttribute('aria-label', `組札 ${i+1}`);
       const card = topCard(state.foundations[i]);
       if (card) slot.appendChild(cardButton(card, {source:'foundation', foundation:i}));
-      else slot.innerHTML = catSuitArt(SUIT_KEYS[i]);
+      else slot.innerHTML = `<span class="foundation-standard-suit ${(SUIT_KEYS[i] === 'H' || SUIT_KEYS[i] === 'D') ? 'red' : 'black'}">${SUITS[i]}</span>`;
       els.foundations.appendChild(slot);
     }
   }
