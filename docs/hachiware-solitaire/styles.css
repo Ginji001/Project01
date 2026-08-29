@@ -402,3 +402,33 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .tableau {
   min-height: 590px;
 }
+
+/* balanced-stock-v13 */
+.top-row {
+  display: grid;
+  grid-template-columns: var(--card-w) var(--card-w) 1fr auto;
+  gap: var(--gap);
+  align-items: end;
+  margin-bottom: 10px;
+}
+.top-row > .pile-wrap {
+  display: flex;
+}
+.top-row > .top-spacer {
+  display: block;
+}
+.foundations {
+  grid-column: auto;
+}
+.stock.empty::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,.62);
+  font-size: 20px;
+}
+.waste {
+  overflow: visible;
+}

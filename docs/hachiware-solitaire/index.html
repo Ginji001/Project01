@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#173f33">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="52枚すべてを場札へ配る、白黒ハチワレ猫の高難度ソリティアPWA">
+  <meta name="description" content="場札と左上の山札へバランス良く配る、白黒ハチワレ猫の高難度ソリティアPWA">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ハチワレソリティア">
@@ -22,7 +22,7 @@
         <img class="mascot" src="icon.svg" alt="白黒のハチワレ猫">
         <div>
           <h1>ハチワレソリティア</h1>
-          <p id="catLine">52枚全場札・MAX複雑モード</p>
+          <p id="catLine">場札42枚＋山札10枚・MAX複雑モード</p>
         </div>
       </div>
       <button class="icon-btn" id="settingsBtn" type="button" aria-label="設定">⚙︎</button>
@@ -32,7 +32,7 @@
       <div><span>難易度</span><strong id="difficultyLabel">2</strong></div>
       <div><span>手数</span><strong id="movesLabel">0</strong></div>
       <div><span>時間</span><strong id="timeLabel">00:00</strong></div>
-      <div><span>場札</span><strong id="redealLabel">52</strong></div>
+      <div><span>場札/山札</span><strong id="redealLabel">42/10</strong></div>
     </section>
 
     <section class="toolbar" aria-label="操作">
@@ -42,7 +42,7 @@
     </section>
 
     <main class="game-area" id="gameArea" aria-label="ソリティア盤面">
-      <section class="top-row" aria-label="組札">
+      <section class="top-row" aria-label="山札と組札">
         <div class="pile-wrap">
           <span class="pile-label">山札</span>
           <button class="pile stock" id="stockPile" type="button" aria-label="山札"></button>

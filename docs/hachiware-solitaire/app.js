@@ -4,15 +4,15 @@
   const SUITS = ['♠', '♥', '♣', '♦'];
   const SUIT_KEYS = ['S', 'H', 'C', 'D'];
   const RANKS = {1:'A',11:'J',12:'Q',13:'K'};
-  const STORAGE_KEY = 'hachiware-solitaire-state-v12';
+  const STORAGE_KEY = 'hachiware-solitaire-state-v13';
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
-    1: {name:'エキスパート', hints:6, undos:4, glow:false, lockFoundation:false, maxRun:5, emptyKingSingle:false, autoFoundation:true, foundationGap:99, desc:'ヒント6回・やり直し4回・連続移動5枚まで'},
-    2: {name:'プロ', hints:5, undos:3, glow:false, lockFoundation:true, maxRun:4, emptyKingSingle:true, autoFoundation:false, foundationGap:3, desc:'ヒント5回・組札戻し不可・連続移動4枚まで'},
-    3: {name:'マスター', hints:4, undos:2, glow:false, lockFoundation:true, maxRun:3, emptyKingSingle:true, autoFoundation:false, foundationGap:2, desc:'ヒント4回・組札バランス制限・連続移動3枚まで'},
-    4: {name:'極', hints:3, undos:1, glow:false, lockFoundation:true, maxRun:2, emptyKingSingle:true, autoFoundation:false, foundationGap:1, desc:'ヒント3回・組札バランス厳格・連続移動2枚まで'},
-    5: {name:'ねこ神級 MAX', hints:3, undos:0, glow:false, lockFoundation:true, maxRun:1, emptyKingSingle:true, autoFoundation:false, foundationGap:1, desc:'ヒント3回・やり直しなし・1枚移動・組札バランス厳格'}
+    1: {name:'エキスパート', draw:1, hints:6, undos:4, glow:false, lockFoundation:false, maxRun:5, emptyKingSingle:false, autoFoundation:true, foundationGap:99, desc:'ヒント6回・やり直し4回・連続移動5枚まで'},
+    2: {name:'プロ', draw:1, hints:5, undos:3, glow:false, lockFoundation:true, maxRun:4, emptyKingSingle:true, autoFoundation:false, foundationGap:3, desc:'ヒント5回・組札戻し不可・連続移動4枚まで'},
+    3: {name:'マスター', draw:1, hints:4, undos:2, glow:false, lockFoundation:true, maxRun:3, emptyKingSingle:true, autoFoundation:false, foundationGap:2, desc:'ヒント4回・組札バランス制限・連続移動3枚まで'},
+    4: {name:'極', draw:1, hints:3, undos:1, glow:false, lockFoundation:true, maxRun:2, emptyKingSingle:true, autoFoundation:false, foundationGap:1, desc:'ヒント3回・組札バランス厳格・連続移動2枚まで'},
+    5: {name:'ねこ神級 MAX', draw:1, hints:3, undos:0, glow:false, lockFoundation:true, maxRun:1, emptyKingSingle:true, autoFoundation:false, foundationGap:1, desc:'ヒント3回・やり直しなし・1枚移動・組札バランス厳格'}
   };
 
   const els = {
@@ -132,8 +132,53 @@
     return order;
   }
 
+  function splitBalancedStock(order, count = 10) {
+    const suitCounts = Object.fromEntries(SUIT_KEYS.map(s => [s, 0]));
+    const chosen = [];
+    const chosenIndexes = new Set();
+
+    // Entire order is rank-major. These targets spread stock from low to high ranks.
+    const targets = [0.05,0.14,0.23,0.32,0.41,0.50,0.60,0.70,0.82,0.94]
+      .slice(0, count)
+      .map(f => Math.round((order.length - 1) * f));
+
+    for (const target of targets) {
+      let best = null;
+      for (let i = 0; i < order.length; i++) {
+        if (chosenIndexes.has(i)) continue;
+        const card = order[i];
+
+        // Four suits should be distributed roughly 2-3 cards each.
+        if (suitCounts[card.suit] >= 3) continue;
+
+        const band = card.rank <= 4 ? 0 : card.rank <= 9 ? 1 : 2;
+        const bandCount = chosen.filter(x => (x.card.rank <= 4 ? 0 : x.card.rank <= 9 ? 1 : 2) === band).length;
+        const score =
+          Math.abs(i - target) * 10 +
+          suitCounts[card.suit] * 5 +
+          bandCount * 2;
+
+        if (!best || score < best.score) best = {index:i, card, score};
+      }
+
+      if (!best) {
+        const i = order.findIndex((_, idx) => !chosenIndexes.has(idx));
+        best = {index:i, card:order[i], score:0};
+      }
+
+      chosenIndexes.add(best.index);
+      suitCounts[best.card.suit] += 1;
+      chosen.push(best);
+    }
+
+    chosen.sort((a,b) => a.index - b.index);
+    const stockDrawOrder = chosen.map(x => x.card);
+    const tableauOrder = order.filter((_, idx) => !chosenIndexes.has(idx));
+    return {stockDrawOrder, tableauOrder};
+  }
+
   function chooseCapacities() {
-    return shuffledCopy([6,6,6,6,7,7,7]);
+    return [5,5,5,5,5,5,5];
   }
 
   function distributeBalanced(order, visible, bridge) {
@@ -200,8 +245,12 @@
   function makeNewState(level) {
     const {chain, bridge} = buildOpeningStructure();
     const visible = shuffledCopy(chain);
-    const hiddenOrder = buildFoundationOrder(chain, bridge);
-    const hiddenColumns = distributeBalanced(hiddenOrder, visible, bridge);
+    const fullHiddenOrder = buildFoundationOrder(chain, bridge);
+
+    // 10 cards go to the upper-left stock, balanced across suits and rank bands.
+    // Remaining 34 + bridge = 35 hidden tableau cards: exactly 5 under each visible card.
+    const {stockDrawOrder, tableauOrder} = splitBalancedStock(fullHiddenOrder, 10);
+    const hiddenColumns = distributeBalanced(tableauOrder, visible, bridge);
 
     const tableau = Array.from({length:7}, (_, col) => {
       const physicalHidden = hiddenColumns[col].slice().reverse();
@@ -209,10 +258,14 @@
       return [...physicalHidden, visible[col]];
     });
 
+    // drawFromStock uses pop(), so reverse the intended draw sequence.
+    const stock = stockDrawOrder.slice().reverse();
+    stock.forEach(card => card.faceUp = false);
+
     return {
-      version: 12,
+      version: 13,
       difficulty: Number(level),
-      stock: [],
+      stock,
       waste: [],
       foundations: [[],[],[],[]],
       tableau,
@@ -236,7 +289,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 12 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 13 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -250,7 +303,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('MAX複雑モードだにゃ', `${DIFFICULTIES[level].name}で開始。52枚を全列・全深さへ分散。最初は2段階の場札パズルを解き、下の札を開ける順番を作るのが重要。ヒントは全難易度で使えるよ。`);
+    setHelper('場札と山札を均等に使うにゃ', `${DIFFICULTIES[level].name}で開始。場札42枚＋左上の山札10枚。山札にも低・中・高ランクと4マークを分散してあるよ。山札は1周だけ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -460,7 +513,8 @@
   function hasAnyLegalMove() {
     if (!state || state.won) return false;
 
-    // このモードでは52枚すべて場札にあるため、山札は使わない。
+    // 山札が残っていれば、まだめくる手がある。
+    if (state.stock.length > 0) return true;
 
     // めくれる裏向き場札がある。
     for (const col of state.tableau) {
@@ -510,7 +564,7 @@
     state.gameOver = true;
     selected = null;
     saveGame();
-    setHelper('ゲームオーバーだにゃ', '場札にも組札にも合法手がなくなったよ。ヒントや「1手戻す」が残っていれば、別の順番を試してみよう。');
+    setHelper('ゲームオーバーだにゃ', '山札を使い切り、場札・めくり札・組札にも合法手がなくなったよ。ヒントや「1手戻す」が残っていれば別の順番を試そう。');
     if (els.gameOverUndo) els.gameOverUndo.disabled = undoStack.length === 0 || DIFFICULTIES[state.difficulty].undos === 0;
     if (els.gameOverSheet) openSheet(els.gameOverSheet);
   }
@@ -543,6 +597,39 @@
 
   function findHintMove() {
     const candidates = [];
+
+    const waste = topCard(state.waste);
+    if (waste) {
+      const f = foundationTargetFor(waste);
+      if (f >= 0) {
+        candidates.push({
+          score: waste.rank <= 2 ? 92 : 62,
+          text: `めくり札の ${rankLabel(waste.rank)}${suitSymbol(waste)} を組札へ。`,
+          selector: '[data-source="waste"]',
+          targetSelector: `[data-foundation-slot="${f}"]`
+        });
+      }
+      for (let d = 0; d < 7; d++) {
+        if (canPlaceOnTableau(waste, state.tableau[d])) {
+          candidates.push({
+            score: state.tableau[d].length === 0 ? 78 : 68,
+            text: `めくり札の ${rankLabel(waste.rank)}${suitSymbol(waste)} を${d+1}列目へ。`,
+            selector: '[data-source="waste"]',
+            targetSelector: `[data-tableau-dest="${d}"]`
+          });
+        }
+      }
+    }
+
+    if (state.stock.length > 0) {
+      candidates.push({
+        score: 18,
+        text: '左上の山札を1枚めくってみよう。',
+        selector: '#stockPile',
+        targetSelector: null
+      });
+    }
+
 
     for (let c = 0; c < 7; c++) {
       const col = state.tableau[c];
@@ -724,7 +811,7 @@
     els.difficulty.textContent = `${state.difficulty} ${cfg.name}`;
     els.moves.textContent = state.moves;
     els.time.textContent = formatTime(state.seconds);
-    els.redeal.textContent = `${state.tableau.reduce((n, col) => n + col.length, 0)}`;
+    els.redeal.textContent = `${state.tableau.reduce((n, col) => n + col.length, 0)}/${state.stock.length}`;
     const hintLeft = cfg.hints === Infinity ? '∞' : Math.max(0, cfg.hints - state.hintsUsed);
     els.hint.textContent = `💡 ヒント ${hintLeft}`;
     els.undo.disabled = DIFFICULTIES[state.difficulty].undos === 0 || undoStack.length === 0 || state.won;
