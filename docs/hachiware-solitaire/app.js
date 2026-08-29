@@ -8,11 +8,11 @@
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
-    1: {name:'のんびり', draw:1, redeals:Infinity, hints:Infinity, undos:Infinity, glow:true, desc:'1枚めくり・山札再利用∞・ヒント∞・やり直し∞'},
-    2: {name:'やさしい', draw:1, redeals:3, hints:10, undos:20, glow:false, desc:'1枚めくり・山札再利用3回・ヒント10回'},
-    3: {name:'ふつう', draw:3, redeals:3, hints:5, undos:10, glow:false, desc:'3枚めくり・山札再利用3回・ヒント5回'},
-    4: {name:'むずかしい', draw:3, redeals:1, hints:2, undos:3, glow:false, desc:'3枚めくり・山札再利用1回・ヒント2回'},
-    5: {name:'ねこ神級', draw:3, redeals:0, hints:0, undos:0, glow:false, desc:'3枚めくり・山札再利用なし・ヒント/やり直しなし'}
+    1: {name:'やさしめ', draw:1, redeals:2, hints:5, undos:8, glow:true, desc:'1枚めくり・山札再利用2回・ヒント5回・やり直し8回'},
+    2: {name:'ふつう', draw:3, redeals:2, hints:3, undos:5, glow:false, desc:'3枚めくり・山札再利用2回・ヒント3回・やり直し5回'},
+    3: {name:'むずかしい', draw:3, redeals:1, hints:2, undos:3, glow:false, desc:'3枚めくり・山札再利用1回・ヒント2回・やり直し3回'},
+    4: {name:'かなり難しい', draw:3, redeals:0, hints:1, undos:1, glow:false, desc:'3枚めくり・山札再利用なし・ヒント1回・やり直し1回'},
+    5: {name:'ねこ神級', draw:3, redeals:0, hints:0, undos:0, glow:false, desc:'3枚めくり・山札再利用なし・ヒントなし・やり直しなし'}
   };
 
   const els = {
@@ -96,6 +96,7 @@
   }
 
 
+
   function shuffledCopy(items) {
     const arr = items.slice();
     for (let i = arr.length - 1; i > 0; i--) {
@@ -109,52 +110,105 @@
     return {id:`${suit}${rank}`, suit, rank, faceUp};
   }
 
-  // 必ずクリア可能な初期配置。
-  // A〜7は場札から各マーク順に必ず取り出せるよう配置し、
-  // 8〜Kは山札から難易度のめくり枚数に合わせて取り出せる順に並べる。
-  function makeNewState(level) {
-    const tableau = Array.from({length:7}, () => []);
-    const suitOrder = shuffledCopy(SUIT_KEYS);
+  function buildInterleavedSuitSequence(maxRanksBySuit) {
+    const nextRank = Object.fromEntries(SUIT_KEYS.map(s => [s, 1]));
+    const result = [];
+    while (true) {
+      const available = SUIT_KEYS.filter(s => nextRank[s] <= maxRanksBySuit[s]);
+      if (!available.length) break;
 
-    // 列の枚数 1+2+...+7=28 を、各マーク7枚ずつに分割。
-    // [7], [6+1], [5+2], [4+3] = 各7枚。
-    const groups = [
-      [6],
-      [5, 0],
-      [4, 1],
-      [3, 2]
-    ];
-
-    suitOrder.forEach((suit, groupIndex) => {
-      let rank = 1;
-      for (const colIndex of groups[groupIndex]) {
-        const depth = colIndex + 1;
-        const exposureOrder = [];
-        for (let i = 0; i < depth; i++) exposureOrder.push(makeCard(suit, rank++, false));
-        const pile = exposureOrder.reverse();
-        pile.forEach(card => card.faceUp = false);
-        pile[pile.length - 1].faceUp = true;
-        tableau[colIndex] = pile;
+      // 同じマークが連続しすぎないようにしつつ、毎回ランダム化。
+      let choices = available;
+      const last = result[result.length - 1];
+      if (last && available.length > 1) {
+        const filtered = available.filter(s => s !== last.suit);
+        if (filtered.length) choices = filtered;
       }
+      const suit = choices[Math.floor(Math.random() * choices.length)];
+      result.push(makeCard(suit, nextRank[suit]++, false));
+    }
+    return result;
+  }
+
+  function distributeSequenceToTableau(sequence) {
+    const columns = Array.from({length:7}, () => []);
+    const remaining = [1,2,3,4,5,6,7];
+
+    sequence.forEach((card, seqIndex) => {
+      const availableCols = remaining
+        .map((count, col) => ({count, col}))
+        .filter(x => x.count > 0);
+
+      // 先頭の数手が同じ列ばかりにならないよう、空き容量と列の偏りを混ぜて選ぶ。
+      let candidates = availableCols;
+      if (seqIndex < 10) {
+        const emptyExposure = availableCols.filter(x => columns[x.col].length === 0);
+        if (emptyExposure.length) candidates = emptyExposure;
+      }
+      const pick = candidates[Math.floor(Math.random() * candidates.length)].col;
+      columns[pick].push(card);
+      remaining[pick] -= 1;
     });
 
-    // 場札をA〜7まで上げ切れば、山札の8〜Kも必ず取り出せる。
+    // 各列は「解く順番」の逆順に積み、先頭だけ表向き。
+    return columns.map(exposureOrder => {
+      const pile = exposureOrder.slice().reverse();
+      pile.forEach(c => c.faceUp = false);
+      if (pile.length) pile[pile.length - 1].faceUp = true;
+      return pile;
+    });
+  }
+
+  function tableauRankCountsFor(level) {
+    const patterns = {
+      1: [7,7,7,7],
+      2: [6,7,7,8],
+      3: [5,7,8,8],
+      4: [5,6,8,9],
+      5: [4,6,8,10]
+    };
+    const values = shuffledCopy(patterns[level]);
+    return Object.fromEntries(SUIT_KEYS.map((s, i) => [s, values[i]]));
+  }
+
+  // 必ずクリア可能だが、配置は毎回大きく変わる。
+  // 場札は各マークの昇順をランダムに交差させた「隠れた解法」を持ち、
+  // 山札も3枚めくりで順番を考えないと取り逃しやすい構成にする。
+  function makeNewState(level) {
+    const counts = tableauRankCountsFor(level);
+    const solutionPrefix = buildInterleavedSuitSequence(counts);
+    const tableau = distributeSequenceToTableau(solutionPrefix);
+
+    // 残りのカードも、各マークの続きが必ず取り出せる順序を内部に持たせる。
+    const maxRanks = Object.fromEntries(SUIT_KEYS.map(s => [s, 13]));
+    const nextRank = Object.fromEntries(SUIT_KEYS.map(s => [s, counts[s] + 1]));
     const desiredRemovalOrder = [];
-    for (let rank = 8; rank <= 13; rank++) {
-      for (const suit of shuffledCopy(suitOrder)) desiredRemovalOrder.push(makeCard(suit, rank, false));
+
+    while (desiredRemovalOrder.length < 24) {
+      const available = SUIT_KEYS.filter(s => nextRank[s] <= maxRanks[s]);
+      if (!available.length) break;
+      let choices = available;
+      const last = desiredRemovalOrder[desiredRemovalOrder.length - 1];
+      if (last && available.length > 1) {
+        const filtered = available.filter(s => s !== last.suit);
+        if (filtered.length) choices = filtered;
+      }
+      const suit = choices[Math.floor(Math.random() * choices.length)];
+      desiredRemovalOrder.push(makeCard(suit, nextRank[suit]++, false));
     }
 
     const drawCount = DIFFICULTIES[level].draw;
     const popSequence = [];
     for (let i = 0; i < desiredRemovalOrder.length; i += drawCount) {
-      // 3枚めくりの場合、捨て札の一番上から順に取れるよう逆順で山札から出す。
-      popSequence.push(...desiredRemovalOrder.slice(i, i + drawCount).reverse());
+      const chunk = desiredRemovalOrder.slice(i, i + drawCount);
+      // 3枚めくりでは、見えるカードから順に取れるよう内部だけ逆順。
+      popSequence.push(...chunk.reverse());
     }
     const stock = popSequence.reverse();
     stock.forEach(card => card.faceUp = false);
 
     return {
-      version: 2,
+      version: 3,
       difficulty: level,
       stock,
       waste: [],
@@ -180,7 +234,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 2 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 3 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -194,7 +248,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('クリア可能なゲームだにゃ', `${DIFFICULTIES[level].name}で開始。この配り方は必ずクリアできるよ。まずAを組札へ。`);
+    setHelper('クリア可能だけど手強いにゃ', `${DIFFICULTIES[level].name}で開始。毎回配置が変わるよ。Aだけを追わず、裏向きカードを開ける手を優先してね。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
