@@ -4,7 +4,7 @@
   const SUITS = ['♠', '♥', '♣', '♦'];
   const SUIT_KEYS = ['S', 'H', 'C', 'D'];
   const RANKS = {1:'A',11:'J',12:'Q',13:'K'};
-  const STORAGE_KEY = 'hachiware-solitaire-state-v18';
+  const STORAGE_KEY = 'hachiware-solitaire-state-v19';
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
@@ -269,7 +269,7 @@
     stock.forEach(card => card.faceUp = false);
 
     return {
-      version: 18,
+      version: 19,
       difficulty: Number(level),
       stock,
       waste: [],
@@ -295,7 +295,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 18 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 19 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -309,7 +309,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('通常トランプ絵柄版だにゃ', `${DIFFICULTIES[level].name}で開始。下の場札は3・4・5・6・7・8・9枚を毎回ランダム配置。A〜10は通常のトランプ配置、J・Q・Kは一般的な絵札風だよ。`);
+    setHelper('通常トランプ版だにゃ', `${DIFFICULTIES[level].name}で開始。A〜10は通常のトランプ配置、J・Q・Kも一般的な英米式トランプの絵札に統一したよ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -749,52 +749,66 @@
 
   function courtArt(card) {
     const suit = suitSymbol(card);
-    const rank = rankLabel(card.rank);
-    const primary = cardColor(card) === 'red' ? '#c23a4b' : '#1f2a30';
-    const secondary = '#e6b52c';
-    const skin = '#fff2d8';
+    const suitColor = cardColor(card) === 'red' ? '#c82035' : '#15191d';
+    const red = '#c82035';
+    const blue = '#1f4f8a';
+    const yellow = '#e3b53d';
+    const skin = '#f5dfbd';
+    const ink = '#111';
 
-    const headgear = card.rank === 11
-      ? '<path d="M35 31h30l-4-10-11 6-11-6z" fill="#c23a4b" stroke="#111" stroke-width="2"/>'
-      : '<path d="M36 31l5-13 9 8 9-8 5 13" fill="#e6b52c" stroke="#111" stroke-width="2" stroke-linejoin="round"/>';
-
-    const prop = card.rank === 13
-      ? '<path d="M75 35v45" stroke="#111" stroke-width="4"/><path d="M68 36h14l-7-13z" fill="#e6b52c" stroke="#111" stroke-width="2"/>'
+    const topFigure = card.rank === 13
+      ? `
+        <g>
+          <path d="M35 28l5-13 10 8 10-8 5 13z" fill="${yellow}" stroke="${ink}" stroke-width="2"/>
+          <path d="M50 25c-9 0-15 7-15 16v7c0 9 6 16 15 16s15-7 15-16v-7c0-9-6-16-15-16z" fill="${skin}" stroke="${ink}" stroke-width="2"/>
+          <circle cx="43" cy="43" r="2.2" fill="${ink}"/><circle cx="57" cy="43" r="2.2" fill="${ink}"/>
+          <path d="M43 51c4 4 10 4 14 0" fill="none" stroke="${ink}" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M34 63l16-10 16 10 8 28H26z" fill="${red}" stroke="${ink}" stroke-width="2"/>
+          <path d="M39 63l11 15 11-15" fill="${blue}" stroke="${ink}" stroke-width="2"/>
+          <path d="M72 31v48" stroke="${ink}" stroke-width="4" stroke-linecap="round"/>
+          <path d="M65 32h14l-7-13z" fill="${yellow}" stroke="${ink}" stroke-width="2"/>
+          <path d="M31 76h38" stroke="#fff" stroke-width="2" opacity=".85"/>
+          <text x="50" y="91" text-anchor="middle" font-family="Georgia,serif" font-size="19" font-weight="700" fill="#fff">${suit}</text>
+        </g>`
       : card.rank === 12
-      ? '<path d="M72 44c7 4 8 11 3 18" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round"/><circle cx="73" cy="40" r="5" fill="#e6b52c" stroke="#111" stroke-width="2"/>'
-      : '<path d="M73 35v45" stroke="#111" stroke-width="3"/><path d="M68 35h10" stroke="#111" stroke-width="3"/>';
+      ? `
+        <g>
+          <path d="M35 28l5-13 10 8 10-8 5 13z" fill="${yellow}" stroke="${ink}" stroke-width="2"/>
+          <path d="M50 25c-9 0-15 7-15 16v7c0 9 6 16 15 16s15-7 15-16v-7c0-9-6-16-15-16z" fill="${skin}" stroke="${ink}" stroke-width="2"/>
+          <circle cx="43" cy="43" r="2.2" fill="${ink}"/><circle cx="57" cy="43" r="2.2" fill="${ink}"/>
+          <path d="M44 52c4 3 8 3 12 0" fill="none" stroke="${ink}" stroke-width="2.1" stroke-linecap="round"/>
+          <path d="M31 63l19-10 19 10 5 28H26z" fill="${blue}" stroke="${ink}" stroke-width="2"/>
+          <path d="M38 63l12 15 12-15" fill="${red}" stroke="${ink}" stroke-width="2"/>
+          <path d="M69 35c8 4 8 13 2 18" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="70" cy="31" r="5" fill="${yellow}" stroke="${ink}" stroke-width="2"/>
+          <path d="M32 76h36" stroke="#fff" stroke-width="2" opacity=".85"/>
+          <text x="50" y="91" text-anchor="middle" font-family="Georgia,serif" font-size="19" font-weight="700" fill="#fff">${suit}</text>
+        </g>`
+      : `
+        <g>
+          <path d="M34 29h32l-4-10-12 7-12-7z" fill="${red}" stroke="${ink}" stroke-width="2"/>
+          <path d="M50 25c-9 0-15 7-15 16v7c0 9 6 16 15 16s15-7 15-16v-7c0-9-6-16-15-16z" fill="${skin}" stroke="${ink}" stroke-width="2"/>
+          <circle cx="43" cy="43" r="2.2" fill="${ink}"/><circle cx="57" cy="43" r="2.2" fill="${ink}"/>
+          <path d="M44 52c4 3 8 3 12 0" fill="none" stroke="${ink}" stroke-width="2.1" stroke-linecap="round"/>
+          <path d="M31 63l19-10 19 10 5 28H26z" fill="${red}" stroke="${ink}" stroke-width="2"/>
+          <path d="M38 63l12 15 12-15" fill="${yellow}" stroke="${ink}" stroke-width="2"/>
+          <path d="M71 30v48" stroke="${ink}" stroke-width="3"/>
+          <path d="M66 30h10" stroke="${ink}" stroke-width="3"/>
+          <path d="M31 76h38" stroke="#fff" stroke-width="2" opacity=".85"/>
+          <text x="50" y="91" text-anchor="middle" font-family="Georgia,serif" font-size="19" font-weight="700" fill="#fff">${suit}</text>
+        </g>`;
 
     return `
       <svg class="classic-court" viewBox="0 0 100 140" aria-hidden="true">
         <defs>
-          <clipPath id="courtClip${card.suit}${card.rank}"><rect x="20" y="13" width="60" height="114" rx="6"/></clipPath>
+          <clipPath id="courtTop${card.suit}${card.rank}"><rect x="19" y="10" width="62" height="60"/></clipPath>
+          <clipPath id="courtBottom${card.suit}${card.rank}"><rect x="19" y="70" width="62" height="60"/></clipPath>
         </defs>
-        <g clip-path="url(#courtClip${card.suit}${card.rank})">
-          <rect x="20" y="13" width="60" height="114" rx="6" fill="#fffef9" stroke="#111" stroke-width="1.5"/>
-          <g>
-            ${headgear}
-            <path d="M50 27c-9 0-15 7-15 16v7c0 9 6 16 15 16s15-7 15-16v-7c0-9-6-16-15-16z" fill="${skin}" stroke="#111" stroke-width="2"/>
-            <circle cx="43" cy="44" r="2.3" fill="#111"/><circle cx="57" cy="44" r="2.3" fill="#111"/>
-            <path d="M45 53c3 2 7 2 10 0" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"/>
-            <path d="M31 66l19-12 19 12 5 37H26z" fill="${primary}" stroke="#111" stroke-width="2"/>
-            <path d="M38 66l12 15 12-15" fill="${secondary}" stroke="#111" stroke-width="2"/>
-            <path d="M31 83l38 0M34 92l32 0" stroke="#fff" stroke-width="2" opacity=".85"/>
-            ${prop}
-            <text x="50" y="102" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="700" fill="#fff">${suit}</text>
-          </g>
-          <g transform="translate(100 140) rotate(180)">
-            ${headgear}
-            <path d="M50 27c-9 0-15 7-15 16v7c0 9 6 16 15 16s15-7 15-16v-7c0-9-6-16-15-16z" fill="${skin}" stroke="#111" stroke-width="2"/>
-            <circle cx="43" cy="44" r="2.3" fill="#111"/><circle cx="57" cy="44" r="2.3" fill="#111"/>
-            <path d="M45 53c3 2 7 2 10 0" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"/>
-            <path d="M31 66l19-12 19 12 5 37H26z" fill="${primary}" stroke="#111" stroke-width="2"/>
-            <path d="M38 66l12 15 12-15" fill="${secondary}" stroke="#111" stroke-width="2"/>
-            <path d="M31 83l38 0M34 92l32 0" stroke="#fff" stroke-width="2" opacity=".85"/>
-            ${prop}
-            <text x="50" y="102" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="700" fill="#fff">${suit}</text>
-          </g>
-        </g>
-        <text x="50" y="134" text-anchor="middle" font-family="Georgia,serif" font-size="10" font-weight="700" fill="#333">${rank}</text>
+        <rect x="19" y="10" width="62" height="120" rx="5" fill="#fffef9" stroke="#111" stroke-width="1.5"/>
+        <g clip-path="url(#courtTop${card.suit}${card.rank})">${topFigure}</g>
+        <g clip-path="url(#courtBottom${card.suit}${card.rank})" transform="translate(100 140) rotate(180)">${topFigure}</g>
+        <path d="M19 70h62" stroke="#111" stroke-width="1" opacity=".18"/>
+        <text x="50" y="73" text-anchor="middle" font-family="Georgia,serif" font-size="17" font-weight="700" fill="${suitColor}">${suit}</text>
       </svg>`;
   }
 

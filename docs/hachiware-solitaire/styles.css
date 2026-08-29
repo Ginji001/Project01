@@ -604,3 +604,10 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   height: 100%;
   display: block;
 }
+
+/* standard-deck-v19 */
+.classic-court {
+  width: 108%;
+  height: 112%;
+  display: block;
+}
