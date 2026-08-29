@@ -8,11 +8,11 @@
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
-    1: {name:'やさしめ', draw:1, redeals:2, hints:5, undos:8, glow:true, desc:'1枚めくり・山札再利用2回・ヒント5回・やり直し8回'},
-    2: {name:'ふつう', draw:3, redeals:2, hints:3, undos:5, glow:false, desc:'3枚めくり・山札再利用2回・ヒント3回・やり直し5回'},
-    3: {name:'むずかしい', draw:3, redeals:1, hints:2, undos:3, glow:false, desc:'3枚めくり・山札再利用1回・ヒント2回・やり直し3回'},
-    4: {name:'かなり難しい', draw:3, redeals:0, hints:1, undos:1, glow:false, desc:'3枚めくり・山札再利用なし・ヒント1回・やり直し1回'},
-    5: {name:'ねこ神級', draw:3, redeals:0, hints:0, undos:0, glow:false, desc:'3枚めくり・山札再利用なし・ヒントなし・やり直しなし'}
+    1: {name:'やさしめ', draw:1, redeals:0, hints:4, undos:6, glow:true, desc:'1枚めくり・山札は1周だけ・ヒント4回・やり直し6回'},
+    2: {name:'ふつう', draw:2, redeals:0, hints:3, undos:4, glow:false, desc:'2枚めくり・山札は1周だけ・ヒント3回・やり直し4回'},
+    3: {name:'むずかしい', draw:2, redeals:0, hints:2, undos:2, glow:false, desc:'2枚めくり・山札は1周だけ・ヒント2回・やり直し2回'},
+    4: {name:'かなり難しい', draw:3, redeals:0, hints:1, undos:1, glow:false, desc:'3枚めくり・山札は1周だけ・ヒント1回・やり直し1回'},
+    5: {name:'ねこ神級', draw:3, redeals:0, hints:0, undos:0, glow:false, desc:'3枚めくり・山札は1周だけ・ヒントなし・やり直しなし'}
   };
 
   const els = {
@@ -208,7 +208,7 @@
     stock.forEach(card => card.faceUp = false);
 
     return {
-      version: 3,
+      version: 4,
       difficulty: level,
       stock,
       waste: [],
@@ -234,7 +234,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 3 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 4 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -248,7 +248,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('クリア可能だけど手強いにゃ', `${DIFFICULTIES[level].name}で開始。毎回配置が変わるよ。Aだけを追わず、裏向きカードを開ける手を優先してね。`);
+    setHelper('テンポよくいくにゃ', `${DIFFICULTIES[level].name}で開始。山札は1周だけ。序盤は裏向きカードを開けつつ、使える捨て札は見逃さないのがコツ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -283,35 +283,23 @@
     const cfg = DIFFICULTIES[state.difficulty];
     selected = null;
 
-    if (state.stock.length) {
-      snapshot();
-      const count = Math.min(cfg.draw, state.stock.length);
-      for (let i = 0; i < count; i++) {
-        const card = state.stock.pop();
-        card.faceUp = true;
-        state.waste.push(card);
-      }
-      incrementMove();
-      setHelper('山札をめくったにゃ', `${count}枚めくり。使えるカードがないか見てみよう。`);
-      saveGame();
-      render();
+    if (!state.stock.length) {
+      setHelper('山札はここまでだにゃ', '山札は1周だけ。残っている場札と捨て札で続きを考えよう。');
+      checkGameOver();
       return;
     }
 
-    const canRedeal = state.waste.length && (cfg.redeals === Infinity || state.redealsUsed < cfg.redeals);
-    if (canRedeal) {
-      snapshot();
-      state.stock = state.waste.reverse();
-      state.stock.forEach(c => c.faceUp = false);
-      state.waste = [];
-      state.redealsUsed += 1;
-      incrementMove();
-      setHelper('山札を戻したにゃ', `山札の再利用 ${state.redealsUsed}回目。`);
-      saveGame();
-      render();
-    } else {
-      setHelper('山札はここまで', 'この難易度では、もう山札を戻せないにゃ。');
+    snapshot();
+    const count = Math.min(cfg.draw, state.stock.length);
+    for (let i = 0; i < count; i++) {
+      const card = state.stock.pop();
+      card.faceUp = true;
+      state.waste.push(card);
     }
+    incrementMove();
+    setHelper('山札をめくったにゃ', count === 1 ? '1枚めくり。使えるカードをすぐ確認しよう。' : `${count}枚めくり。いちばん上のカードから使えるよ。`);
+    saveGame();
+    render();
   }
 
   function topCard(arr) { return arr.length ? arr[arr.length - 1] : null; }
@@ -438,18 +426,11 @@
   }
 
 
-  function canRedealNow() {
-    const cfg = DIFFICULTIES[state.difficulty];
-    return state.stock.length === 0 &&
-      state.waste.length > 0 &&
-      (cfg.redeals === Infinity || state.redealsUsed < cfg.redeals);
-  }
-
   function hasAnyLegalMove() {
     if (!state || state.won) return false;
 
-    // 山札をめくれる / 捨て札を山札へ戻せる。
-    if (state.stock.length > 0 || canRedealNow()) return true;
+    // 山札をめくれる。山札は1周だけで、捨て札は戻さない。
+    if (state.stock.length > 0) return true;
 
     // めくれる裏向き場札がある。
     for (const col of state.tableau) {
@@ -497,7 +478,7 @@
     state.gameOver = true;
     selected = null;
     saveGame();
-    setHelper('ゲームオーバーだにゃ', '動かせるカードがなくなったよ。1手戻すか、新しいゲームで再挑戦しよう。');
+    setHelper('ゲームオーバーだにゃ', '山札は1周で終了。動かせるカードがなくなったよ。1手戻すか、新しいゲームで再挑戦しよう。');
     if (els.gameOverUndo) els.gameOverUndo.disabled = undoStack.length === 0 || DIFFICULTIES[state.difficulty].undos === 0;
     if (els.gameOverSheet) openSheet(els.gameOverSheet);
   }
@@ -556,8 +537,6 @@
     }
 
     if (state.stock.length) return {text:'山札をめくって、新しいカードを出してみよう。', selector:'#stockPile'};
-    const canRedeal = state.waste.length && (DIFFICULTIES[state.difficulty].redeals === Infinity || state.redealsUsed < DIFFICULTIES[state.difficulty].redeals);
-    if (canRedeal) return {text:'空になった山札をタップして、捨て札を戻そう。', selector:'#stockPile'};
     return null;
   }
 
@@ -692,8 +671,7 @@
     els.difficulty.textContent = `${state.difficulty} ${cfg.name}`;
     els.moves.textContent = state.moves;
     els.time.textContent = formatTime(state.seconds);
-    if (cfg.redeals === Infinity) els.redeal.textContent = '∞';
-    else els.redeal.textContent = `${Math.max(0, cfg.redeals - state.redealsUsed)}`;
+    els.redeal.textContent = `${state.stock.length}`;
     const hintLeft = cfg.hints === Infinity ? '∞' : Math.max(0, cfg.hints - state.hintsUsed);
     els.hint.textContent = `💡 ヒント ${hintLeft}`;
     els.undo.disabled = DIFFICULTIES[state.difficulty].undos === 0 || undoStack.length === 0 || state.won;
