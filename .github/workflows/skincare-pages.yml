@@ -1,10 +1,11 @@
-name: Deploy skincare PWA to GitHub Pages
+name: Deploy PWAs to GitHub Pages
 
 on:
   push:
     branches: ["master"]
     paths:
       - "docs/skincare-pwa/**"
+      - "docs/hachiware-solitaire/**"
       - ".github/workflows/skincare-pages.yml"
   workflow_dispatch:
 
@@ -14,7 +15,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "skincare-pages"
+  group: "project01-pages"
   cancel-in-progress: false
 
 jobs:
@@ -32,10 +33,17 @@ jobs:
         with:
           enablement: true
 
-      - name: Upload PWA
+      - name: Prepare site
+        run: |
+          mkdir -p _site
+          cp -R docs/skincare-pwa/. _site/
+          mkdir -p _site/hachiware-solitaire
+          cp -R docs/hachiware-solitaire/. _site/hachiware-solitaire/
+
+      - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/skincare-pwa
+          path: _site
 
       - name: Deploy
         id: deployment
