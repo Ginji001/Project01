@@ -369,3 +369,21 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .game-over-card .win-actions button:first-child:disabled {
   opacity: .45;
 }
+
+/* tableau-only-v10 */
+.top-row {
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  margin-bottom: 8px;
+}
+.top-row > .pile-wrap,
+.top-row > .top-spacer {
+  display: none;
+}
+.foundations {
+  grid-column: 2;
+}
+.tableau {
+  min-height: 565px;
+  padding-bottom: 28px;
+}
