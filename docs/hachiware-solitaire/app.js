@@ -4,7 +4,7 @@
   const SUITS = ['♠', '♥', '♣', '♦'];
   const SUIT_KEYS = ['S', 'H', 'C', 'D'];
   const RANKS = {1:'A',11:'J',12:'Q',13:'K'};
-  const STORAGE_KEY = 'hachiware-solitaire-state-v17';
+  const STORAGE_KEY = 'hachiware-solitaire-state-v18';
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
@@ -269,7 +269,7 @@
     stock.forEach(card => card.faceUp = false);
 
     return {
-      version: 17,
+      version: 18,
       difficulty: Number(level),
       stock,
       waste: [],
@@ -295,7 +295,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 17 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 18 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -309,7 +309,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('クラシックカード版だにゃ', `${DIFFICULTIES[level].name}で開始。下の場札は3・4・5・6・7・8・9枚を毎回ランダム配置。カードは通常のトランプ風で、文字とマークを大きくしたよ。`);
+    setHelper('通常トランプ絵柄版だにゃ', `${DIFFICULTIES[level].name}で開始。下の場札は3・4・5・6・7・8・9枚を毎回ランダム配置。A〜10は通常のトランプ配置、J・Q・Kは一般的な絵札風だよ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -750,34 +750,54 @@
   function courtArt(card) {
     const suit = suitSymbol(card);
     const rank = rankLabel(card.rank);
-    const accent = cardColor(card) === 'red' ? '#c72f3e' : '#151719';
-    const secondary = cardColor(card) === 'red' ? '#f0b51c' : '#d9a928';
-    const head = card.rank === 12
-      ? '<path d="M50 24c-8 0-14 6-14 14v7c0 8 6 14 14 14s14-6 14-14v-7c0-8-6-14-14-14z" fill="#fff6df" stroke="#111" stroke-width="2"/><path d="M37 31l4-12 9 8 9-8 4 12" fill="#f0b51c" stroke="#111" stroke-width="2"/>'
-      : '<path d="M50 24c-8 0-14 6-14 14v7c0 8 6 14 14 14s14-6 14-14v-7c0-8-6-14-14-14z" fill="#fff6df" stroke="#111" stroke-width="2"/><path d="M37 31l4-12 9 8 9-8 4 12" fill="#f0b51c" stroke="#111" stroke-width="2"/>';
+    const primary = cardColor(card) === 'red' ? '#c23a4b' : '#1f2a30';
+    const secondary = '#e6b52c';
+    const skin = '#fff2d8';
+
+    const headgear = card.rank === 11
+      ? '<path d="M35 31h30l-4-10-11 6-11-6z" fill="#c23a4b" stroke="#111" stroke-width="2"/>'
+      : '<path d="M36 31l5-13 9 8 9-8 5 13" fill="#e6b52c" stroke="#111" stroke-width="2" stroke-linejoin="round"/>';
+
     const prop = card.rank === 13
-      ? '<path d="M70 28v47" stroke="#111" stroke-width="4"/><path d="M64 30h12l-6-10z" fill="#f0b51c" stroke="#111" stroke-width="2"/>'
+      ? '<path d="M75 35v45" stroke="#111" stroke-width="4"/><path d="M68 36h14l-7-13z" fill="#e6b52c" stroke="#111" stroke-width="2"/>'
       : card.rank === 12
-      ? '<path d="M68 31c6 5 5 13-1 17" fill="none" stroke="#111" stroke-width="3"/><circle cx="70" cy="27" r="5" fill="#f0b51c" stroke="#111" stroke-width="2"/>'
-      : '<path d="M69 26v49" stroke="#111" stroke-width="3"/><path d="M65 25h8" stroke="#111" stroke-width="3"/>';
+      ? '<path d="M72 44c7 4 8 11 3 18" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round"/><circle cx="73" cy="40" r="5" fill="#e6b52c" stroke="#111" stroke-width="2"/>'
+      : '<path d="M73 35v45" stroke="#111" stroke-width="3"/><path d="M68 35h10" stroke="#111" stroke-width="3"/>';
+
     return `
       <svg class="classic-court" viewBox="0 0 100 140" aria-hidden="true">
-        <g>
-          <rect x="22" y="15" width="56" height="110" rx="9" fill="#fff" stroke="#111" stroke-width="1.5"/>
-          ${head}
-          <path d="M31 64l19-10 19 10 4 33H27z" fill="${accent}" stroke="#111" stroke-width="2"/>
-          <path d="M39 64l11 14 11-14" fill="${secondary}" stroke="#111" stroke-width="2"/>
-          <path d="M38 42h6m12 0h6" stroke="#111" stroke-width="2" stroke-linecap="round"/>
-          <path d="M45 50c3 2 7 2 10 0" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"/>
-          ${prop}
-          <text x="50" y="92" text-anchor="middle" font-family="Georgia,serif" font-size="26" font-weight="700" fill="#fff">${suit}</text>
+        <defs>
+          <clipPath id="courtClip${card.suit}${card.rank}"><rect x="20" y="13" width="60" height="114" rx="6"/></clipPath>
+        </defs>
+        <g clip-path="url(#courtClip${card.suit}${card.rank})">
+          <rect x="20" y="13" width="60" height="114" rx="6" fill="#fffef9" stroke="#111" stroke-width="1.5"/>
+          <g>
+            ${headgear}
+            <path d="M50 27c-9 0-15 7-15 16v7c0 9 6 16 15 16s15-7 15-16v-7c0-9-6-16-15-16z" fill="${skin}" stroke="#111" stroke-width="2"/>
+            <circle cx="43" cy="44" r="2.3" fill="#111"/><circle cx="57" cy="44" r="2.3" fill="#111"/>
+            <path d="M45 53c3 2 7 2 10 0" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+            <path d="M31 66l19-12 19 12 5 37H26z" fill="${primary}" stroke="#111" stroke-width="2"/>
+            <path d="M38 66l12 15 12-15" fill="${secondary}" stroke="#111" stroke-width="2"/>
+            <path d="M31 83l38 0M34 92l32 0" stroke="#fff" stroke-width="2" opacity=".85"/>
+            ${prop}
+            <text x="50" y="102" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="700" fill="#fff">${suit}</text>
+          </g>
+          <g transform="translate(100 140) rotate(180)">
+            ${headgear}
+            <path d="M50 27c-9 0-15 7-15 16v7c0 9 6 16 15 16s15-7 15-16v-7c0-9-6-16-15-16z" fill="${skin}" stroke="#111" stroke-width="2"/>
+            <circle cx="43" cy="44" r="2.3" fill="#111"/><circle cx="57" cy="44" r="2.3" fill="#111"/>
+            <path d="M45 53c3 2 7 2 10 0" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+            <path d="M31 66l19-12 19 12 5 37H26z" fill="${primary}" stroke="#111" stroke-width="2"/>
+            <path d="M38 66l12 15 12-15" fill="${secondary}" stroke="#111" stroke-width="2"/>
+            <path d="M31 83l38 0M34 92l32 0" stroke="#fff" stroke-width="2" opacity=".85"/>
+            ${prop}
+            <text x="50" y="102" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="700" fill="#fff">${suit}</text>
+          </g>
         </g>
-        <g transform="translate(100 140) rotate(180)">
-          <rect x="22" y="15" width="56" height="110" rx="9" fill="none"/>
-          <text x="50" y="117" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="700" fill="${accent}">${rank}</text>
-        </g>
+        <text x="50" y="134" text-anchor="middle" font-family="Georgia,serif" font-size="10" font-weight="700" fill="#333">${rank}</text>
       </svg>`;
   }
+
 
   function classicCardFace(card) {
     const topCorner = `<span class="classic-index classic-index-top"><span class="classic-rank">${rankLabel(card.rank)}</span><span class="classic-suit">${suitSymbol(card)}</span></span>`;
