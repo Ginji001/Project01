@@ -113,6 +113,21 @@
     </section>
   </div>
 
+
+  <div class="sheet-backdrop hidden" id="gameOverSheet" role="dialog" aria-modal="true" aria-labelledby="gameOverTitle">
+    <section class="win-card game-over-card">
+      <img src="icon.svg" alt="白黒のハチワレ猫">
+      <p class="game-over-mark" aria-hidden="true">×</p>
+      <h2 id="gameOverTitle">ゲームオーバー</h2>
+      <p>動かせるカードがなくなったにゃ。</p>
+      <p class="game-over-sub">このゲーム自体はクリア可能な配り方です。1手戻して別の手を試すか、新しいゲームで再挑戦できます。</p>
+      <div class="win-actions">
+        <button id="gameOverUndoBtn" type="button">1手戻す</button>
+        <button class="secondary-btn" id="gameOverNewBtn" type="button">新しいゲーム</button>
+      </div>
+    </section>
+  </div>
+
   <script src="app.js" defer></script>
 </body>
 </html>

@@ -40,6 +40,9 @@
     winSummary: document.getElementById('winSummary'),
     winNew: document.getElementById('winNewBtn'),
     winClose: document.getElementById('winCloseBtn'),
+    gameOverSheet: document.getElementById('gameOverSheet'),
+    gameOverNew: document.getElementById('gameOverNewBtn'),
+    gameOverUndo: document.getElementById('gameOverUndoBtn'),
     install: document.getElementById('installBtn')
   };
 
@@ -92,18 +95,68 @@
     return deck;
   }
 
-  function makeNewState(level) {
-    const deck = freshDeck();
-    const tableau = Array.from({length:7}, () => []);
-    for (let col = 0; col < 7; col++) {
-      for (let n = 0; n <= col; n++) tableau[col].push(deck.pop());
-      tableau[col][tableau[col].length - 1].faceUp = true;
+
+  function shuffledCopy(items) {
+    const arr = items.slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    deck.forEach(c => c.faceUp = false);
+    return arr;
+  }
+
+  function makeCard(suit, rank, faceUp = false) {
+    return {id:`${suit}${rank}`, suit, rank, faceUp};
+  }
+
+  // 必ずクリア可能な初期配置。
+  // A〜7は場札から各マーク順に必ず取り出せるよう配置し、
+  // 8〜Kは山札から難易度のめくり枚数に合わせて取り出せる順に並べる。
+  function makeNewState(level) {
+    const tableau = Array.from({length:7}, () => []);
+    const suitOrder = shuffledCopy(SUIT_KEYS);
+
+    // 列の枚数 1+2+...+7=28 を、各マーク7枚ずつに分割。
+    // [7], [6+1], [5+2], [4+3] = 各7枚。
+    const groups = [
+      [6],
+      [5, 0],
+      [4, 1],
+      [3, 2]
+    ];
+
+    suitOrder.forEach((suit, groupIndex) => {
+      let rank = 1;
+      for (const colIndex of groups[groupIndex]) {
+        const depth = colIndex + 1;
+        const exposureOrder = [];
+        for (let i = 0; i < depth; i++) exposureOrder.push(makeCard(suit, rank++, false));
+        const pile = exposureOrder.reverse();
+        pile.forEach(card => card.faceUp = false);
+        pile[pile.length - 1].faceUp = true;
+        tableau[colIndex] = pile;
+      }
+    });
+
+    // 場札をA〜7まで上げ切れば、山札の8〜Kも必ず取り出せる。
+    const desiredRemovalOrder = [];
+    for (let rank = 8; rank <= 13; rank++) {
+      for (const suit of shuffledCopy(suitOrder)) desiredRemovalOrder.push(makeCard(suit, rank, false));
+    }
+
+    const drawCount = DIFFICULTIES[level].draw;
+    const popSequence = [];
+    for (let i = 0; i < desiredRemovalOrder.length; i += drawCount) {
+      // 3枚めくりの場合、捨て札の一番上から順に取れるよう逆順で山札から出す。
+      popSequence.push(...desiredRemovalOrder.slice(i, i + drawCount).reverse());
+    }
+    const stock = popSequence.reverse();
+    stock.forEach(card => card.faceUp = false);
+
     return {
-      version: 1,
+      version: 2,
       difficulty: level,
-      stock: deck,
+      stock,
       waste: [],
       foundations: [[],[],[],[]],
       tableau,
@@ -112,6 +165,7 @@
       redealsUsed: 0,
       hintsUsed: 0,
       won: false,
+      gameOver: false,
       started: true,
       updatedAt: Date.now()
     };
@@ -126,7 +180,8 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 1 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 2 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
   }
@@ -139,10 +194,11 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('新しいゲーム', `${DIFFICULTIES[level].name}で開始したにゃ。まずAを探そう。`);
+    setHelper('クリア可能なゲームだにゃ', `${DIFFICULTIES[level].name}で開始。この配り方は必ずクリアできるよ。まずAを組札へ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
+    if (els.gameOverSheet) closeSheet(els.gameOverSheet);
   }
 
   function snapshot() {
@@ -159,6 +215,7 @@
     selected = null;
     saveGame();
     setHelper('やり直したにゃ', 'ひとつ前の状態に戻したよ。');
+    if (els.gameOverSheet) closeSheet(els.gameOverSheet);
     render();
   }
 
@@ -168,7 +225,7 @@
   }
 
   function drawFromStock() {
-    if (state.won) return;
+    if (state.won || state.gameOver) return;
     const cfg = DIFFICULTIES[state.difficulty];
     selected = null;
 
@@ -234,7 +291,7 @@
   }
 
   function selectSource(source) {
-    if (state.won) return;
+    if (state.won || state.gameOver) return;
     if (selected && sameSelection(selected, source)) {
       if (tryAutoFoundation()) return;
       selected = null;
@@ -326,8 +383,78 @@
     return state.foundations.findIndex(f => canPlaceOnFoundation(card, f));
   }
 
+
+  function canRedealNow() {
+    const cfg = DIFFICULTIES[state.difficulty];
+    return state.stock.length === 0 &&
+      state.waste.length > 0 &&
+      (cfg.redeals === Infinity || state.redealsUsed < cfg.redeals);
+  }
+
+  function hasAnyLegalMove() {
+    if (!state || state.won) return false;
+
+    // 山札をめくれる / 捨て札を山札へ戻せる。
+    if (state.stock.length > 0 || canRedealNow()) return true;
+
+    // めくれる裏向き場札がある。
+    for (const col of state.tableau) {
+      const top = topCard(col);
+      if (top && !top.faceUp) return true;
+    }
+
+    // 捨て札の一番上。
+    const waste = topCard(state.waste);
+    if (waste) {
+      if (foundationTargetFor(waste) >= 0) return true;
+      for (let d = 0; d < 7; d++) if (canPlaceOnTableau(waste, state.tableau[d])) return true;
+    }
+
+    // 場札 → 組札 / 場札 → 別の場札。
+    for (let c = 0; c < 7; c++) {
+      const col = state.tableau[c];
+      if (!col.length) continue;
+      const top = topCard(col);
+      if (top?.faceUp && foundationTargetFor(top) >= 0) return true;
+
+      for (let i = 0; i < col.length; i++) {
+        if (!col[i].faceUp) continue;
+        const run = col.slice(i);
+        if (!validRun(run)) continue;
+        for (let d = 0; d < 7; d++) {
+          if (d === c) continue;
+          if (canPlaceOnTableau(run[0], state.tableau[d])) return true;
+        }
+      }
+    }
+
+    // 組札から場札へ戻す救済手も合法手として数える。
+    for (let f = 0; f < 4; f++) {
+      const card = topCard(state.foundations[f]);
+      if (!card) continue;
+      for (let d = 0; d < 7; d++) if (canPlaceOnTableau(card, state.tableau[d])) return true;
+    }
+
+    return false;
+  }
+
+  function showGameOver() {
+    if (!state || state.won || state.gameOver) return;
+    state.gameOver = true;
+    selected = null;
+    saveGame();
+    setHelper('ゲームオーバーだにゃ', '動かせるカードがなくなったよ。1手戻すか、新しいゲームで再挑戦しよう。');
+    if (els.gameOverUndo) els.gameOverUndo.disabled = undoStack.length === 0 || DIFFICULTIES[state.difficulty].undos === 0;
+    if (els.gameOverSheet) openSheet(els.gameOverSheet);
+  }
+
+  function checkGameOver() {
+    if (!state || state.won || state.gameOver) return;
+    if (!hasAnyLegalMove()) showGameOver();
+  }
+
   function hint() {
-    if (state.won) return;
+    if (state.won || state.gameOver) return;
     const cfg = DIFFICULTIES[state.difficulty];
     if (cfg.hints !== Infinity && state.hintsUsed >= cfg.hints) {
       setHelper('ヒントは使い切ったにゃ', '盤面をよく見て、裏向きカードを開ける手を優先しよう。');
@@ -392,6 +519,8 @@
   function checkWin() {
     if (state.foundations.reduce((n, f) => n + f.length, 0) !== 52 || state.won) return;
     state.won = true;
+    state.gameOver = false;
+    if (els.gameOverSheet) closeSheet(els.gameOverSheet);
     saveGame();
     const stats = loadStats();
     const level = state.difficulty;
@@ -412,6 +541,7 @@
     renderTableau();
     renderStatus();
     renderStats();
+    queueMicrotask(checkGameOver);
   }
 
   function cardButton(card, meta, topPx = 0) {
@@ -557,7 +687,7 @@
   function closeSheet(sheet) { sheet.classList.add('hidden'); }
 
   function handleGameClick(e) {
-    if (Date.now() < suppressClickUntil) return;
+    if (Date.now() < suppressClickUntil || state?.gameOver) return;
     const cardEl = e.target.closest('.card');
     const foundationSlot = e.target.closest('.foundation-slot');
     const tableauDest = e.target.closest('.tableau-column');
@@ -785,6 +915,13 @@
     els.winNew.addEventListener('click', () => startNewGame(state.difficulty));
     els.winClose.addEventListener('click', () => closeSheet(els.winSheet));
     els.winSheet.addEventListener('click', e => { if (e.target === els.winSheet) closeSheet(els.winSheet); });
+
+    if (els.gameOverNew) els.gameOverNew.addEventListener('click', () => startNewGame(state.difficulty));
+    if (els.gameOverUndo) els.gameOverUndo.addEventListener('click', () => {
+      if (!undoStack.length || DIFFICULTIES[state.difficulty].undos === 0) return;
+      closeSheet(els.gameOverSheet);
+      undo();
+    });
 
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
