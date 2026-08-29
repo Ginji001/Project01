@@ -4,15 +4,15 @@
   const SUITS = ['♠', '♥', '♣', '♦'];
   const SUIT_KEYS = ['S', 'H', 'C', 'D'];
   const RANKS = {1:'A',11:'J',12:'Q',13:'K'};
-  const STORAGE_KEY = 'hachiware-solitaire-state-v1';
+  const STORAGE_KEY = 'hachiware-solitaire-state-v12';
   const STATS_KEY = 'hachiware-solitaire-stats-v1';
 
   const DIFFICULTIES = {
-    1: {name:'手強い', draw:1, redeals:0, hints:5, undos:3, glow:false, lockFoundation:false, maxRun:5, emptyKingSingle:false, autoFoundation:true, desc:'ヒント5回・やり直し3回・連続移動5枚まで'},
-    2: {name:'難しい', draw:1, redeals:0, hints:4, undos:2, glow:false, lockFoundation:true, maxRun:4, emptyKingSingle:false, autoFoundation:false, desc:'ヒント4回・組札戻し不可・連続移動4枚まで'},
-    3: {name:'上級', draw:1, redeals:0, hints:3, undos:1, glow:false, lockFoundation:true, maxRun:3, emptyKingSingle:true, autoFoundation:false, desc:'ヒント3回・空列はK単体・連続移動3枚まで'},
-    4: {name:'激むず', draw:1, redeals:0, hints:2, undos:1, glow:false, lockFoundation:true, maxRun:2, emptyKingSingle:true, autoFoundation:false, desc:'ヒント2回・空列はK単体・連続移動2枚まで'},
-    5: {name:'ねこ神級', draw:1, redeals:0, hints:2, undos:0, glow:false, lockFoundation:true, maxRun:1, emptyKingSingle:true, autoFoundation:false, desc:'ヒント2回・やり直しなし・1枚ずつ移動・空列はK単体'}
+    1: {name:'エキスパート', hints:6, undos:4, glow:false, lockFoundation:false, maxRun:5, emptyKingSingle:false, autoFoundation:true, foundationGap:99, desc:'ヒント6回・やり直し4回・連続移動5枚まで'},
+    2: {name:'プロ', hints:5, undos:3, glow:false, lockFoundation:true, maxRun:4, emptyKingSingle:true, autoFoundation:false, foundationGap:3, desc:'ヒント5回・組札戻し不可・連続移動4枚まで'},
+    3: {name:'マスター', hints:4, undos:2, glow:false, lockFoundation:true, maxRun:3, emptyKingSingle:true, autoFoundation:false, foundationGap:2, desc:'ヒント4回・組札バランス制限・連続移動3枚まで'},
+    4: {name:'極', hints:3, undos:1, glow:false, lockFoundation:true, maxRun:2, emptyKingSingle:true, autoFoundation:false, foundationGap:1, desc:'ヒント3回・組札バランス厳格・連続移動2枚まで'},
+    5: {name:'ねこ神級 MAX', hints:3, undos:0, glow:false, lockFoundation:true, maxRun:1, emptyKingSingle:true, autoFoundation:false, foundationGap:1, desc:'ヒント3回・やり直しなし・1枚移動・組札バランス厳格'}
   };
 
   const els = {
@@ -83,20 +83,6 @@
 
   function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
-  function freshDeck() {
-    const deck = [];
-    for (const suit of SUIT_KEYS) {
-      for (let rank = 1; rank <= 13; rank++) deck.push({id:`${suit}${rank}`, suit, rank, faceUp:false});
-    }
-    for (let i = deck.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [deck[i], deck[j]] = [deck[j], deck[i]];
-    }
-    return deck;
-  }
-
-
-
 
   function shuffledCopy(items) {
     const arr = items.slice();
@@ -111,139 +97,121 @@
     return {id:`${suit}${rank}`, suit, rank, faceUp};
   }
 
-  function alternatingBlockerSuits() {
+  function buildOpeningStructure() {
     const reds = shuffledCopy(['H','D']);
     const blacks = shuffledCopy(['S','C']);
-    const startsRed = Math.random() < .5;
-    const result = [];
-    let ri = 0, bi = 0;
-    for (let i = 0; i < 7; i++) {
-      const wantRed = startsRed ? i % 2 === 0 : i % 2 === 1;
-      if (wantRed) {
-        result.push(reds[ri % reds.length]);
-        ri++;
-      } else {
-        result.push(blacks[bi % blacks.length]);
-        bi++;
+    const startsBlack = Math.random() < .5;
+    const first = startsBlack ? blacks : reds;
+    const second = startsBlack ? reds : blacks;
+
+    const chain = [
+      makeCard(first[0], 13, true),
+      makeCard(second[0], 12, true),
+      makeCard(first[1], 11, true),
+      makeCard(first[0], 10, true),
+      makeCard(second[1], 9, true),
+      makeCard(first[1], 8, true),
+      makeCard(second[0], 7, true)
+    ];
+
+    const bridgeSuit = second[Math.floor(Math.random() * second.length)];
+    const bridge = makeCard(bridgeSuit, 11, false);
+    return {chain, bridge};
+  }
+
+  function buildFoundationOrder(blockers, bridge) {
+    const blocked = new Set(blockers.map(c => c.id));
+    blocked.add(bridge.id);
+    const order = [];
+    for (let rank = 1; rank <= 13; rank++) {
+      for (const suit of shuffledCopy(SUIT_KEYS)) {
+        const id = `${suit}${rank}`;
+        if (!blocked.has(id)) order.push(makeCard(suit, rank, false));
       }
     }
-    return result;
-  }
-
-
-
-
-  function alternatingBlockerSuits() {
-    // 2つのマークだけで K→Q→J→10→9→8→7 の完全な赤黒交互列を作る。
-    // 同じ色のもう一方のマークは下場に回るため、カード全体が散りやすくなる。
-    const red = shuffledCopy(['H','D'])[0];
-    const black = shuffledCopy(['S','C'])[0];
-    const startsRed = Math.random() < .5;
-    const suits = [];
-    for (let i = 0; i < 7; i++) {
-      const rank = 13 - i;
-      const useRed = startsRed ? i % 2 === 0 : i % 2 === 1;
-      suits.push(useRed ? red : black);
-    }
-    return suits;
-  }
-
-  function buildGuaranteedHiddenOrder(blockers) {
-    const blockerById = new Map(blockers.map(c => [c.id, c]));
-    const blockerByRank = new Map(blockers.map(c => [c.rank, c]));
-    const progress = Object.fromEntries(SUIT_KEYS.map(s => [s, 0]));
-    const order = [];
-    const added = new Set();
-
-    function addHidden(suit, rank) {
-      const id = `${suit}${rank}`;
-      if (blockerById.has(id) || added.has(id)) return;
-      order.push(makeCard(suit, rank, false));
-      added.add(id);
-    }
-
-    // 7→K のブロッカーを上から順に外せるよう、
-    // 必要な同マークの低ランクだけを先に露出させる。
-    for (let rank = 7; rank <= 13; rank++) {
-      const blocker = blockerByRank.get(rank);
-      if (!blocker) continue;
-      for (let r = progress[blocker.suit] + 1; r < rank; r++) addHidden(blocker.suit, r);
-      progress[blocker.suit] = rank; // このブロッカーはここで組札へ上げる想定
-    }
-
-    // 残りは各マークの昇順を守りながら全体へ。
-    for (let rank = 1; rank <= 13; rank++) {
-      const suits = shuffledCopy(SUIT_KEYS);
-      for (const suit of suits) addHidden(suit, rank);
-    }
-
     return order;
   }
 
-
-  function distributeAllHidden(hiddenOrder, blockers) {
-    // 最終的な列枚数は 7・7・7・7・8・8・8 だが、
-    // どの列が8枚になるかは毎回変える。
-    const capacities = shuffledCopy([6,6,6,6,7,7,7]);
-    const orders = Array.from({length:7}, () => []);
-    const kingCol = blockers.findIndex(c => c.rank === 13);
-
-    // Kの下は最も開くのが遅いので、解法の末尾側だけを入れる。
-    const kingDepth = capacities[kingCol];
-    const lateForKing = hiddenOrder.slice(-kingDepth);
-    const early = hiddenOrder.slice(0, hiddenOrder.length - kingDepth);
-    orders[kingCol].push(...lateForKing);
-
-    const usableCols = [0,1,2,3,4,5,6].filter(c => c !== kingCol);
-
-    // グローバルな解法順は維持しながら、列の選択をランダム化。
-    // 各列の露出順は解法順の部分列になるので、必ず進める経路を残せる。
-    for (const card of early) {
-      const available = usableCols.filter(c => orders[c].length < capacities[c]);
-      const minRatio = Math.min(...available.map(c => orders[c].length / capacities[c]));
-      let candidates = available.filter(c => (orders[c].length / capacities[c]) <= minRatio + 0.26);
-
-      const differentSuit = candidates.filter(c => {
-        const last = orders[c][orders[c].length - 1];
-        return !last || last.suit !== card.suit;
-      });
-      if (differentSuit.length) candidates = differentSuit;
-
-      // 同じ数字も縦に固まりにくくする。
-      const differentRank = candidates.filter(c => {
-        const last = orders[c][orders[c].length - 1];
-        return !last || last.rank !== card.rank;
-      });
-      if (differentRank.length) candidates = differentRank;
-
-      const col = candidates[Math.floor(Math.random() * candidates.length)];
-      orders[col].push(card);
-    }
-
-    return orders;
+  function chooseCapacities() {
+    return shuffledCopy([6,6,6,6,7,7,7]);
   }
 
-  // 52枚すべてを場札へ。
-  // 最初の K→Q→J→10→9→8→7 は列位置を毎回シャッフルし、
-  // 一見して正解の順番が分からない配置にする。
-  function makeNewState(level) {
-    const blockerSuits = alternatingBlockerSuits();
-    const blockerRanks = [13,12,11,10,9,8,7];
-    const chainBlockers = blockerRanks.map((rank, i) => makeCard(blockerSuits[i], rank, true));
-    const blockers = shuffledCopy(chainBlockers);
+  function distributeBalanced(order, visible, bridge) {
+    const capacities = chooseCapacities();
+    const columns = Array.from({length:7}, () => []);
+    const kCol = visible.findIndex(c => c.rank === 13);
+    const jCol = visible.findIndex(c => c.rank === 11);
+    const openCols = [0,1,2,3,4,5,6].filter(c => c !== kCol && c !== jCol);
 
-    const hiddenOrder = buildGuaranteedHiddenOrder(chainBlockers);
-    const hiddenOrders = distributeAllHidden(hiddenOrder, blockers);
+    columns[jCol].push(bridge);
+
+    const lateNeed = capacities[kCol] + (capacities[jCol] - 1);
+    const late = order.slice(-lateNeed);
+    const early = order.slice(0, order.length - lateNeed);
+
+    let lateTurn = Math.random() < .5 ? kCol : jCol;
+    for (const card of late) {
+      let candidates = [kCol, jCol].filter(col => columns[col].length < capacities[col]);
+      if (candidates.length > 1) {
+        const preferred = candidates.find(col => {
+          const prev = columns[col][columns[col].length - 1];
+          return col === lateTurn && (!prev || prev.suit !== card.suit);
+        });
+        if (preferred != null) candidates = [preferred];
+      }
+      const col = candidates[0];
+      columns[col].push(card);
+      lateTurn = col === kCol ? jCol : kCol;
+    }
+
+    for (let index = 0; index < early.length; index++) {
+      const card = early[index];
+      const available = openCols.filter(col => columns[col].length < capacities[col]);
+      const minRatio = Math.min(...available.map(col => columns[col].length / capacities[col]));
+      let candidates = available.filter(col =>
+        (columns[col].length / capacities[col]) <= minRatio + 0.20
+      );
+
+      const diffSuit = candidates.filter(col => {
+        const prev = columns[col][columns[col].length - 1];
+        return !prev || prev.suit !== card.suit;
+      });
+      if (diffSuit.length) candidates = diffSuit;
+
+      const diffRank = candidates.filter(col => {
+        const prev = columns[col][columns[col].length - 1];
+        return !prev || prev.rank !== card.rank;
+      });
+      if (diffRank.length) candidates = diffRank;
+
+      const diffColor = candidates.filter(col => {
+        const prev = columns[col][columns[col].length - 1] || visible[col];
+        return cardColor(prev) !== cardColor(card);
+      });
+      if (diffColor.length) candidates = diffColor;
+
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      columns[pick].push(card);
+    }
+
+    return columns;
+  }
+
+  function makeNewState(level) {
+    const {chain, bridge} = buildOpeningStructure();
+    const visible = shuffledCopy(chain);
+    const hiddenOrder = buildFoundationOrder(chain, bridge);
+    const hiddenColumns = distributeBalanced(hiddenOrder, visible, bridge);
 
     const tableau = Array.from({length:7}, (_, col) => {
-      const hiddenPhysical = hiddenOrders[col].slice().reverse();
-      hiddenPhysical.forEach(c => c.faceUp = false);
-      return [...hiddenPhysical, blockers[col]];
+      const physicalHidden = hiddenColumns[col].slice().reverse();
+      physicalHidden.forEach(card => card.faceUp = false);
+      return [...physicalHidden, visible[col]];
     });
 
     return {
-      version: 9,
-      difficulty: level,
+      version: 12,
+      difficulty: Number(level),
       stock: [],
       waste: [],
       foundations: [[],[],[],[]],
@@ -268,7 +236,7 @@
   function loadGame() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.version !== 9 || !DIFFICULTIES[saved.difficulty]) return null;
+      if (!saved || saved.version !== 12 || !DIFFICULTIES[saved.difficulty]) return null;
       if (saved.gameOver == null) saved.gameOver = false;
       return saved;
     } catch { return null; }
@@ -282,7 +250,7 @@
     stats.played[level] = (stats.played[level] || 0) + 1;
     saveStats(stats);
     saveGame();
-    setHelper('複雑モードだにゃ', `${DIFFICULTIES[level].name}で開始。52枚すべて場札。表札の位置も毎回変わるよ。ヒントは使えるけど、下の札を開ける順番が重要。`);
+    setHelper('MAX複雑モードだにゃ', `${DIFFICULTIES[level].name}で開始。52枚を全列・全深さへ分散。最初は2段階の場札パズルを解き、下の札を開ける順番を作るのが重要。ヒントは全難易度で使えるよ。`);
     render();
     closeSheet(els.settingsSheet);
     closeSheet(els.winSheet);
@@ -344,10 +312,22 @@
     return top.faceUp && top.rank === card.rank + 1 && cardColor(top) !== cardColor(card);
   }
 
+  function foundationBalanceAllows(card, foundation) {
+    const gap = DIFFICULTIES[state.difficulty].foundationGap;
+    if (gap >= 99 || card.rank <= 2) return true;
+    const cardIsRed = cardColor(card) === 'red';
+    const oppositeSuits = cardIsRed ? ['S','C'] : ['H','D'];
+    const oppositeRanks = oppositeSuits.map(suit => {
+      const idx = SUIT_KEYS.indexOf(suit);
+      return topCard(state.foundations[idx])?.rank || 0;
+    });
+    return card.rank <= Math.min(...oppositeRanks) + gap;
+  }
+
   function canPlaceOnFoundation(card, foundation) {
     const top = topCard(foundation);
-    if (!top) return card.rank === 1;
-    return top.suit === card.suit && card.rank === top.rank + 1;
+    const normal = !top ? card.rank === 1 : (top.suit === card.suit && card.rank === top.rank + 1);
+    return normal && foundationBalanceAllows(card, foundation);
   }
 
   function validRun(cards) {
@@ -530,7 +510,7 @@
     state.gameOver = true;
     selected = null;
     saveGame();
-    setHelper('ゲームオーバーだにゃ', '場札にも組札にも合法手がなくなったよ。ヒントを使い切っていなければ手順を見直して再挑戦しよう。');
+    setHelper('ゲームオーバーだにゃ', '場札にも組札にも合法手がなくなったよ。ヒントや「1手戻す」が残っていれば、別の順番を試してみよう。');
     if (els.gameOverUndo) els.gameOverUndo.disabled = undoStack.length === 0 || DIFFICULTIES[state.difficulty].undos === 0;
     if (els.gameOverSheet) openSheet(els.gameOverSheet);
   }
@@ -544,61 +524,83 @@
     if (state.won || state.gameOver) return;
     const cfg = DIFFICULTIES[state.difficulty];
     if (cfg.hints !== Infinity && state.hintsUsed >= cfg.hints) {
-      setHelper('ヒントは使い切ったにゃ', '盤面をよく見て、裏向きカードを開ける手を優先しよう。');
+      setHelper('ヒントは使い切ったにゃ', '下のカードを開けられる移動、空列の使い方、組札のバランスを順に確認してみよう。');
       return;
     }
 
     const move = findHintMove();
     if (!move) {
-      setHelper('ヒント候補が見つからないにゃ', '場札の移動か、右上へ上げられるカードがないか見直してみよう。');
+      setHelper('ヒント候補が見つからないにゃ', '組札へ上げられるカードか、別列へ逃がせる表札がないか確認してみよう。');
       return;
     }
 
     state.hintsUsed += 1;
     saveGame();
-    flashHint(move.selector);
+    flashHint(move.selector, move.targetSelector);
     setHelper('ここを見るにゃ', move.text);
     renderStatus();
   }
 
   function findHintMove() {
-    const waste = topCard(state.waste);
-    if (waste) {
-      const f = foundationTargetFor(waste);
-      if (f >= 0) return {text:`捨て札の ${rankLabel(waste.rank)}${suitSymbol(waste)} を組札へ。`, selector:'[data-source="waste"]'};
-      for (let c=0;c<7;c++) if (canPlaceOnTableau(waste, state.tableau[c])) return {text:`捨て札の ${rankLabel(waste.rank)}${suitSymbol(waste)} を${c+1}列目へ。`, selector:'[data-source="waste"]'};
-    }
+    const candidates = [];
 
-    for (let c=0;c<7;c++) {
+    for (let c = 0; c < 7; c++) {
       const col = state.tableau[c];
       if (!col.length) continue;
       const top = topCard(col);
-      if (top.faceUp && foundationTargetFor(top) >= 0) return {text:`${c+1}列目の ${rankLabel(top.rank)}${suitSymbol(top)} を組札へ。`, selector:`[data-col="${c}"][data-index="${col.length-1}"]`};
-      for (let i=0;i<col.length;i++) {
+
+      if (top?.faceUp) {
+        const f = foundationTargetFor(top);
+        if (f >= 0) {
+          const exposes = col.length > 1 && !col[col.length - 2].faceUp;
+          candidates.push({
+            score: exposes ? 150 : (top.rank <= 2 ? 55 : 28),
+            text: `${c+1}列目の ${rankLabel(top.rank)}${suitSymbol(top)} を組札へ。`,
+            selector: `[data-col="${c}"][data-index="${col.length-1}"]`,
+            targetSelector: `[data-foundation-slot="${f}"]`
+          });
+        }
+      }
+
+      for (let i = 0; i < col.length; i++) {
         if (!col[i].faceUp) continue;
         const run = col.slice(i);
-        if (!validRun(run)) continue;
-        for (let d=0;d<7;d++) {
-          if (d===c) continue;
-          if (canMoveRunToTableau(run, state.tableau[d])) {
-            const exposes = i > 0 && !col[i-1].faceUp;
-            if (exposes || run[0].rank === 13) return {text:`${c+1}列目の ${rankLabel(run[0].rank)}${suitSymbol(run[0])} からを${d+1}列目へ。`, selector:`[data-col="${c}"][data-index="${i}"]`};
-          }
+        if (!canSelectRun(run)) continue;
+
+        for (let d = 0; d < 7; d++) {
+          if (d === c || !canMoveRunToTableau(run, state.tableau[d])) continue;
+          const exposes = i > 0 && !col[i - 1].faceUp;
+          const toEmpty = state.tableau[d].length === 0;
+          const sourceDepth = col.length - i;
+
+          let score = 35;
+          if (exposes) score += 145;
+          if (toEmpty) score += 28;
+          if (run[0].rank === 13) score += 12;
+          score += Math.max(0, 14 - sourceDepth);
+
+          candidates.push({
+            score,
+            text: `${c+1}列目の ${rankLabel(run[0].rank)}${suitSymbol(run[0])} からを${d+1}列目へ。`,
+            selector: `[data-col="${c}"][data-index="${i}"]`,
+            targetSelector: `[data-tableau-dest="${d}"]`
+          });
         }
       }
     }
 
-    return null;
+    candidates.sort((a,b) => b.score - a.score);
+    return candidates[0] || null;
   }
 
-  function flashHint(selector) {
+  function flashHint(selector, targetSelector) {
     requestAnimationFrame(() => {
-      const node = document.querySelector(selector);
-      if (!node) return;
-      node.classList.add('hint-flash');
-      setTimeout(() => node.classList.remove('hint-flash'), 1400);
+      const nodes = [document.querySelector(selector), targetSelector ? document.querySelector(targetSelector) : null].filter(Boolean);
+      nodes.forEach(node => node.classList.add('hint-flash'));
+      setTimeout(() => nodes.forEach(node => node.classList.remove('hint-flash')), 1400);
     });
   }
+
 
   function checkWin() {
     if (state.foundations.reduce((n, f) => n + f.length, 0) !== 52 || state.won) return;
