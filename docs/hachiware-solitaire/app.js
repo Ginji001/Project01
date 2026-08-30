@@ -830,7 +830,19 @@
   }
 
   function realCardFace(card) {
-    return `<img class="real-card-image" src="cards/${card.suit}${card.rank}.svg" alt="">`;
+    const rank = rankLabel(card.rank);
+    const suit = suitSymbol(card);
+    const rankClass = card.rank === 10 ? ' rank-ten' : '';
+    return `
+      <img class="real-card-image" src="cards/${card.suit}${card.rank}.svg" alt="">
+      <span class="giant-index giant-index-top${rankClass}">
+        <span class="giant-rank">${rank}</span>
+        <span class="giant-suit">${suit}</span>
+      </span>
+      <span class="giant-index giant-index-bottom${rankClass}">
+        <span class="giant-rank">${rank}</span>
+        <span class="giant-suit">${suit}</span>
+      </span>`;
   }
 
   function realCardBack() {
