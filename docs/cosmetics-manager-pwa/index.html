@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff8f5">
+  <meta name="description" content="気分が上がる色使いで化粧品と施術を管理できる日本語PWA">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="美容管理">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+  <title>化粧品・施術管理</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">端末内保存・オフライン対応</p>
+        <h1 id="screenTitle">ホーム</h1>
+      </div>
+      <button id="themeToggle" class="icon-btn" type="button" aria-label="表示テーマを切り替える">☼</button>
+    </header>
+
+    <main id="app" class="content" tabindex="-1">
+      <section class="screen active" data-screen="home">
+        <div class="hero-card">
+          <div>
+            <span class="status-pill">気持ちよくスタート</span>
+            <h2>製品・施術データは空です</h2>
+            <p>やわらかい色合いで、毎日の美容記録を前向きに続けやすくしました。これから必要なものだけ登録できます。</p>
+          </div>
+          <div class="hero-actions">
+            <button class="primary-btn" data-action="new-product" type="button">製品を登録</button>
+            <button class="secondary-btn" data-action="new-treatment" type="button">施術を登録</button>
+          </div>
+        </div>
+
+        <div class="stat-grid" aria-label="登録状況">
+          <article class="stat-card"><span>使用中の製品</span><strong id="productCount">0</strong></article>
+          <article class="stat-card"><span>有効な施術</span><strong id="treatmentCount">0</strong></article>
+          <article class="stat-card"><span>記録件数</span><strong id="historyCount">0</strong></article>
+        </div>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div><p class="eyebrow">最近の登録</p><h2>新しく追加した項目</h2></div>
+          </div>
+          <div id="recentItems" class="empty-state">まだ登録はありません。</div>
+        </section>
+      </section>
+
+      <section class="screen" data-screen="products">
+        <div class="toolbar">
+          <label class="search-box">
+            <span>検索</span>
+            <input id="productSearch" type="search" placeholder="製品名・ブランド・成分で検索">
+          </label>
+          <button class="primary-btn compact" data-action="new-product" type="button">＋ 登録</button>
+        </div>
+        <div id="productList" class="card-list"></div>
+      </section>
+
+      <section class="screen" data-screen="treatments">
+        <div class="toolbar">
+          <label class="search-box">
+            <span>検索</span>
+            <input id="treatmentSearch" type="search" placeholder="施術名・目的で検索">
+          </label>
+          <button class="primary-btn compact" data-action="new-treatment" type="button">＋ 登録</button>
+        </div>
+        <div id="treatmentList" class="card-list"></div>
+      </section>
+
+      <section class="screen" data-screen="history">
+        <div class="section-heading">
+          <div><p class="eyebrow">使用・実施ログ</p><h2>履歴</h2></div>
+          <button id="clearHistoryBtn" class="text-btn danger-text" type="button">履歴を削除</button>
+        </div>
+        <div id="historyList" class="timeline"></div>
+      </section>
+
+      <section class="screen" data-screen="settings">
+        <section class="panel settings-panel">
+          <h2>データ</h2>
+          <button id="exportBtn" class="setting-row" type="button"><span><strong>バックアップを書き出す</strong><small>製品・施術・履歴・写真をJSONで保存</small></span><span>›</span></button>
+          <label class="setting-row file-row"><span><strong>バックアップから復元</strong><small>保存済みJSONを読み込み</small></span><span>›</span><input id="importInput" type="file" accept="application/json,.json"></label>
+          <button id="resetBtn" class="setting-row danger-row" type="button"><span><strong>全データを削除</strong><small>この端末の登録内容を初期化</small></span><span>›</span></button>
+        </section>
+        <section class="panel settings-panel">
+          <h2>このプロトタイプ</h2>
+          <div class="about-list">
+            <p><span>保存先</span><strong>この端末のみ</strong></p>
+            <p><span>ログイン</span><strong>不要</strong></p>
+            <p><span>通信</span><strong>主要機能はオフライン可</strong></p>
+            <p><span>初期データ</span><strong>製品 0件 / 施術 0件</strong></p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="主要メニュー">
+      <button class="nav-item active" data-target="home" type="button"><span>⌂</span><small>ホーム</small></button>
+      <button class="nav-item" data-target="products" type="button"><span>▣</span><small>製品</small></button>
+      <button class="nav-item" data-target="treatments" type="button"><span>✦</span><small>施術</small></button>
+      <button class="nav-item" data-target="history" type="button"><span>◷</span><small>履歴</small></button>
+      <button class="nav-item" data-target="settings" type="button"><span>⚙</span><small>設定</small></button>
+    </nav>
+  </div>
+
+  <dialog id="editorDialog" class="sheet-dialog">
+    <form id="editorForm" method="dialog" class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div><p id="editorEyebrow" class="eyebrow">新規登録</p><h2 id="editorTitle">製品を登録</h2></div>
+        <button id="closeEditor" class="icon-btn" value="cancel" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div id="editorFields" class="form-fields"></div>
+      <div class="sheet-actions">
+        <button class="secondary-btn" id="cancelEditor" value="cancel" type="button">キャンセル</button>
+        <button class="primary-btn" id="saveEditor" value="default" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirmDialog" class="confirm-dialog">
+    <form method="dialog" class="confirm-card">
+      <h2 id="confirmTitle">確認</h2>
+      <p id="confirmMessage"></p>
+      <div class="confirm-actions">
+        <button id="confirmCancel" class="secondary-btn" value="cancel" type="button">キャンセル</button>
+        <button id="confirmOk" class="danger-btn" value="confirm" type="button">削除する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>
