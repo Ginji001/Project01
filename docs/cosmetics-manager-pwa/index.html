@@ -89,7 +89,10 @@
             <span>検索</span>
             <input id="productSearch" type="search" placeholder="製品名・ブランド・成分で検索">
           </label>
-          <button class="primary-btn compact" data-action="new-product" type="button">＋ 登録</button>
+          <div class="toolbar-actions">
+            <label class="secondary-btn compact import-label">⇩ 一括登録<input class="merge-products-input" data-merge-products-input type="file" accept="application/json,.json"></label>
+            <button class="primary-btn compact" data-action="new-product" type="button">＋ 登録</button>
+          </div>
         </div>
         <div class="filter-row">
           <select id="productStatusFilter" aria-label="状態で絞り込み"><option value="">すべての状態</option><option>使用中</option><option>休止</option><option>終了</option></select>
@@ -132,7 +135,7 @@
         <section class="panel settings-panel">
           <h2>データ</h2>
           <button id="exportBtn" class="setting-row" type="button"><span><strong>バックアップを書き出す</strong><small>製品・施術・履歴・写真をJSONで保存</small></span><span>›</span></button>
-          <label class="setting-row file-row"><span><strong>製品リストを追加登録</strong><small>既存データを残して製品JSONを取り込み</small></span><span>›</span><input id="mergeProductsInput" type="file" accept="application/json,.json"></label>
+          <label class="setting-row file-row"><span><strong>製品リストを追加登録</strong><small>既存データを残して製品JSONを取り込み</small></span><span>›</span><input id="mergeProductsInput" class="merge-products-input" data-merge-products-input type="file" accept="application/json,.json"></label>
           <label class="setting-row file-row"><span><strong>バックアップから復元</strong><small>保存済みJSONを読み込み</small></span><span>›</span><input id="importInput" type="file" accept="application/json,.json"></label>
           <button id="resetBtn" class="setting-row danger-row" type="button"><span><strong>全データを削除</strong><small>この端末の登録内容を初期化</small></span><span>›</span></button>
         </section>
