@@ -7,6 +7,7 @@ on:
       - "docs/skincare-pwa/**"
       - "docs/hachiware-solitaire/**"
       - "docs/cosmetics-manager-pwa/**"
+      - "docs/cosmetics-manager-monitor/**"
       - ".github/workflows/skincare-pages.yml"
   workflow_dispatch:
 
@@ -42,6 +43,8 @@ jobs:
           cp -R docs/hachiware-solitaire/. _site/hachiware-solitaire/
           mkdir -p _site/cosmetics-manager-pwa
           cp -R docs/cosmetics-manager-pwa/. _site/cosmetics-manager-pwa/
+          mkdir -p _site/cosmetics-manager-monitor
+          cp -R docs/cosmetics-manager-monitor/. _site/cosmetics-manager-monitor/
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
