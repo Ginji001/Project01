@@ -1,7 +1,7 @@
 {
   "name": "化粧品・施術管理",
   "short_name": "美容管理",
-  "description": "気分が上がる色使いで化粧品と施術を管理できる日本語PWA",
+  "description": "週間ルーティン・肌状態・注意チェックまで端末内で管理できる日本語PWA",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",
