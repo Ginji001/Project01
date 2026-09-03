@@ -1,12 +1,13 @@
-const CACHE_NAME='cosmetics-manager-monitor-v1';
+const CACHE_NAME='cosmetics-manager-monitor-v2';
 const APP_SHELL=[
   './',
   './index.html',
-  './styles.css?v=1',
-  './app.js?v=1',
-  './app-v2.js?v=1',
-  './app-v3.js?v=1',
-  './manifest.webmanifest?v=1',
+  './styles.css?v=2',
+  './app.js?v=2',
+  './product-images.js?v=2',
+  './app-v2.js?v=2',
+  './app-v3.js?v=2',
+  './manifest.webmanifest?v=2',
   '../cosmetics-manager-pwa/icons/icon-192.png',
   '../cosmetics-manager-pwa/icons/icon-512.png'
 ];
