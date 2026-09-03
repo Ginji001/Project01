@@ -114,3 +114,8 @@ button.stat-card{font:inherit;color:var(--text);text-align:left;cursor:pointer}
 .confirm-actions.single{grid-template-columns:1fr}.settings-panel+.settings-panel{margin-top:12px}
 .timeline-item.tap-card{cursor:pointer}
 @media(max-width:420px){.detail-actions{grid-template-columns:1fr 1fr}.detail-actions button:last-child{grid-column:1/-1}.detail-list>div{grid-template-columns:102px 1fr}}
+
+.toolbar-actions{display:flex;gap:8px;align-items:center}
+.import-label{display:inline-flex;align-items:center;justify-content:center;position:relative;cursor:pointer;white-space:nowrap}
+.import-label input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+@media(max-width:480px){.toolbar{align-items:stretch}.toolbar-actions{width:100%}.toolbar-actions>*{flex:1}}
