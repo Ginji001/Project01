@@ -1,0 +1,16 @@
+{
+  "name": "化粧品・施術管理",
+  "short_name": "美容管理",
+  "description": "気分が上がる色使いで化粧品と施術を管理できる日本語PWA",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#fff8f5",
+  "background_color": "#fff8f5",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
