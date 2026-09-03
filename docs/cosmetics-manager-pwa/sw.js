@@ -1,4 +1,4 @@
-const CACHE_NAME='beauty-manager-pwa-v5';
+const CACHE_NAME='beauty-manager-pwa-v7';
 const APP_SHELL=[
   './',
   './index.html',
