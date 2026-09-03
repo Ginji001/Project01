@@ -39,9 +39,9 @@
         </div>
 
         <div class="stat-grid" aria-label="登録状況">
-          <article class="stat-card"><span>使用中の製品</span><strong id="productCount">0</strong></article>
-          <article class="stat-card"><span>有効な施術</span><strong id="treatmentCount">0</strong></article>
-          <article class="stat-card"><span>記録件数</span><strong id="historyCount">0</strong></article>
+          <button class="stat-card tap-card" data-go-screen="products" type="button"><span>使用中の製品</span><strong id="productCount">0</strong><small>一覧を見る ›</small></button>
+          <button class="stat-card tap-card" data-go-screen="treatments" type="button"><span>有効な施術</span><strong id="treatmentCount">0</strong><small>一覧を見る ›</small></button>
+          <button class="stat-card tap-card" data-go-screen="history" type="button"><span>記録件数</span><strong id="historyCount">0</strong><small>履歴を見る ›</small></button>
         </div>
 
         <section class="panel routine-panel">
@@ -136,7 +136,13 @@
           <button id="resetBtn" class="setting-row danger-row" type="button"><span><strong>全データを削除</strong><small>この端末の登録内容を初期化</small></span><span>›</span></button>
         </section>
         <section class="panel settings-panel">
-          <h2>このプロトタイプ</h2>
+          <h2>アプリ設定</h2>
+          <button id="settingsThemeBtn" class="setting-row" type="button"><span><strong>表示テーマ</strong><small id="settingsThemeLabel">端末設定に合わせます</small></span><span>›</span></button>
+          <button id="settingsHomeBtn" class="setting-row" type="button"><span><strong>ホーム画面への追加方法</strong><small>iPhoneでアプリとして使う手順</small></span><span>›</span></button>
+          <button id="settingsStorageBtn" class="setting-row" type="button"><span><strong>保存状況</strong><small>登録件数・画像数を確認</small></span><span>›</span></button>
+        </section>
+        <section class="panel settings-panel">
+          <h2>このアプリ</h2>
           <div class="about-list">
             <p><span>保存先</span><strong>この端末のみ</strong></p>
             <p><span>ログイン</span><strong>不要</strong></p>
@@ -221,8 +227,42 @@
     </form>
   </dialog>
 
+  <dialog id="detailDialog" class="sheet-dialog detail-dialog">
+    <div class="sheet detail-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div><p id="detailEyebrow" class="eyebrow">詳細</p><h2 id="detailTitle">詳細</h2></div>
+        <button id="detailClose" class="icon-btn" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div id="detailBody" class="detail-body"></div>
+      <div id="detailActions" class="detail-actions"></div>
+    </div>
+  </dialog>
+
+  <dialog id="historyEditDialog" class="confirm-dialog history-edit-dialog">
+    <form id="historyEditForm" class="confirm-card">
+      <h2 id="historyEditTitle">記録を編集</h2>
+      <div id="historyEditFields" class="form-fields"></div>
+      <div class="confirm-actions">
+        <button id="historyEditCancel" class="secondary-btn" type="button">キャンセル</button>
+        <button class="primary-btn" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="infoDialog" class="confirm-dialog info-dialog">
+    <div class="confirm-card">
+      <h2 id="infoTitle">情報</h2>
+      <div id="infoBody" class="info-body"></div>
+      <div class="confirm-actions single">
+        <button id="infoClose" class="primary-btn" type="button">閉じる</button>
+      </div>
+    </div>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="app.js" defer></script>
   <script src="app-v2.js" defer></script>
+  <script src="app-v3.js" defer></script>
 </body>
 </html>
