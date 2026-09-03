@@ -44,6 +44,37 @@
           <article class="stat-card"><span>記録件数</span><strong id="historyCount">0</strong></article>
         </div>
 
+        <section class="panel routine-panel">
+          <div class="section-heading">
+            <div><p class="eyebrow">TODAY</p><h2>今日のケア</h2></div>
+            <span id="todayLabel" class="mini-label"></span>
+          </div>
+          <div id="todayRoutine" class="routine-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div><p class="eyebrow">WEEKLY ROUTINE</p><h2>週間ルーティン</h2></div>
+          </div>
+          <div id="routineDayPicker" class="day-picker compact-days" aria-label="曜日を選択"></div>
+          <div id="weeklyRoutine" class="routine-list"></div>
+        </section>
+
+        <section class="panel safety-panel">
+          <div class="section-heading">
+            <div><p class="eyebrow">CHECK</p><h2>使用前の注意チェック</h2></div>
+          </div>
+          <div id="safetyChecks"></div>
+        </section>
+
+        <section class="panel skin-panel">
+          <div class="section-heading">
+            <div><p class="eyebrow">SKIN LOG</p><h2>肌状態を記録</h2></div>
+            <button id="newSkinLogBtn" class="primary-btn compact" type="button">＋ 記録</button>
+          </div>
+          <div id="latestSkinLog" class="empty-state">肌状態の記録はまだありません。</div>
+        </section>
+
         <section class="panel">
           <div class="section-heading">
             <div><p class="eyebrow">最近の登録</p><h2>新しく追加した項目</h2></div>
@@ -60,6 +91,11 @@
           </label>
           <button class="primary-btn compact" data-action="new-product" type="button">＋ 登録</button>
         </div>
+        <div class="filter-row">
+          <select id="productStatusFilter" aria-label="状態で絞り込み"><option value="">すべての状態</option><option>使用中</option><option>休止</option><option>終了</option></select>
+          <select id="productFrameFilter" aria-label="使用枠で絞り込み"><option value="">すべての使用枠</option><option>通常</option><option>実家</option><option>寝る前</option><option>休止</option></select>
+          <select id="productRiskFilter" aria-label="刺激リスクで絞り込み"><option value="">刺激リスクすべて</option><option>低</option><option>中</option><option>高</option></select>
+        </div>
         <div id="productList" class="card-list"></div>
       </section>
 
@@ -71,6 +107,10 @@
           </label>
           <button class="primary-btn compact" data-action="new-treatment" type="button">＋ 登録</button>
         </div>
+        <div class="filter-row two-cols">
+          <select id="treatmentStatusFilter" aria-label="状態で絞り込み"><option value="">すべての状態</option><option>継続</option><option>休止</option><option>終了</option></select>
+          <select id="treatmentCategoryFilter" aria-label="カテゴリで絞り込み"><option value="">すべてのカテゴリ</option><option>セルフケア</option><option>美容医療</option><option>皮膚科</option><option>機器</option><option>その他</option></select>
+        </div>
         <div id="treatmentList" class="card-list"></div>
       </section>
 
@@ -78,6 +118,12 @@
         <div class="section-heading">
           <div><p class="eyebrow">使用・実施ログ</p><h2>履歴</h2></div>
           <button id="clearHistoryBtn" class="text-btn danger-text" type="button">履歴を削除</button>
+        </div>
+        <div id="historyFilters" class="segment-row" aria-label="履歴の種類">
+          <button class="segment active" data-history-filter="" type="button">すべて</button>
+          <button class="segment" data-history-filter="product" type="button">製品</button>
+          <button class="segment" data-history-filter="treatment" type="button">施術</button>
+          <button class="segment" data-history-filter="skin" type="button">肌状態</button>
         </div>
         <div id="historyList" class="timeline"></div>
       </section>
@@ -96,6 +142,8 @@
             <p><span>ログイン</span><strong>不要</strong></p>
             <p><span>通信</span><strong>主要機能はオフライン可</strong></p>
             <p><span>初期データ</span><strong>製品 0件 / 施術 0件</strong></p>
+            <p><span>週間管理</span><strong>曜日・時間帯・使用枠</strong></p>
+            <p><span>注意チェック</span><strong>重複・休止期間・刺激リスク</strong></p>
           </div>
         </section>
       </section>
@@ -132,6 +180,43 @@
       <div class="confirm-actions">
         <button id="confirmCancel" class="secondary-btn" value="cancel" type="button">キャンセル</button>
         <button id="confirmOk" class="danger-btn" value="confirm" type="button">削除する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="logDialog" class="confirm-dialog log-dialog">
+    <form id="logForm" class="confirm-card">
+      <h2 id="logTitle">記録</h2>
+      <div class="form-fields">
+        <div class="field"><label for="logDateTime">日時</label><input id="logDateTime" name="createdAt" type="datetime-local" required></div>
+        <div class="field"><label for="logNote">メモ</label><textarea id="logNote" name="note" placeholder="肌の反応、使用量、施術後の状態など"></textarea></div>
+      </div>
+      <div class="confirm-actions">
+        <button id="logCancel" class="secondary-btn" type="button">キャンセル</button>
+        <button class="primary-btn" type="submit">記録する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="skinDialog" class="confirm-dialog skin-dialog">
+    <form id="skinForm" class="confirm-card">
+      <h2>肌状態を記録</h2>
+      <p class="dialog-help">その日の肌を5段階で記録します。</p>
+      <div id="skinScorePicker" class="score-picker">
+        <button type="button" data-score="1">1<span>不調</span></button>
+        <button type="button" data-score="2">2<span>やや不調</span></button>
+        <button type="button" data-score="3">3<span>普通</span></button>
+        <button type="button" data-score="4">4<span>良好</span></button>
+        <button type="button" data-score="5">5<span>とても良好</span></button>
+      </div>
+      <input id="skinScore" name="score" type="hidden" value="3">
+      <div class="form-fields skin-form-fields">
+        <div class="field"><label for="skinCondition">状態タグ</label><input id="skinCondition" name="condition" type="text" placeholder="例：乾燥、赤み、皮脂、安定"></div>
+        <div class="field"><label for="skinNote">メモ</label><textarea id="skinNote" name="note" placeholder="気づいた変化や刺激感など"></textarea></div>
+      </div>
+      <div class="confirm-actions">
+        <button id="skinCancel" class="secondary-btn" type="button">キャンセル</button>
+        <button class="primary-btn" type="submit">保存</button>
       </div>
     </form>
   </dialog>
