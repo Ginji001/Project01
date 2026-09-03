@@ -1,9 +1,10 @@
-const CACHE_NAME='beauty-manager-pwa-v3';
+const CACHE_NAME='beauty-manager-pwa-v4';
 const APP_SHELL=[
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './app-v2.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png'
