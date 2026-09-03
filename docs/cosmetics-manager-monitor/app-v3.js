@@ -23,8 +23,12 @@ async function v3OpenItemDetail(type,id){
   const item=source.find(x=>x.id===id);if(!item)return;
   $('#detailEyebrow').textContent=type==='product'?'PRODUCT':'TREATMENT';
   $('#detailTitle').textContent=item.name;
-  const image=item.imageId?await getImageUrl(item.imageId):null;
-  let html=image?'<img class="detail-image" src="'+image+'" alt="'+v2Esc(item.name)+'の写真">':'';
+  let visual={url:null,remote:false,source:null};
+  if(type==='product')visual=await v2ProductVisual(item);
+  else if(item.imageId){
+    try{visual={url:await getImageUrl(item.imageId),remote:false,source:null}}catch{}
+  }
+  let html=visual.url?'<div class="detail-image-block"><img class="detail-image" src="'+v2Esc(visual.url)+'" alt="'+v2Esc(item.name)+'の写真"></div>':'';
   if(type==='product'){
     html+='<div class="detail-badges"><span class="badge">'+v2Esc(item.status||'使用中')+'</span>'+
       (item.category?'<span class="badge muted">'+v2Esc(item.category)+'</span>':'')+
@@ -36,6 +40,7 @@ async function v3OpenItemDetail(type,id){
       ['施術前の休止目安',Number(item.pauseBefore||0)+'日'],['施術後の休止目安',Number(item.pauseAfter||0)+'日'],
       ['併用・注意メモ',item.caution||'未設定'],['その他メモ',item.notes||'未設定']
     ]);
+    if(visual.remote&&visual.source)html+='<a class="network-image-source" href="'+v2Esc(visual.source)+'" target="_blank" rel="noopener noreferrer">画像の出典を確認 ↗</a>';
     if(item.category==='処方薬')html+='<p class="detail-warning">処方薬はアプリの設定より、医師・薬剤師の指示を優先してください。</p>';
   }else{
     const last=v2LatestTreatmentLog(item.id);
@@ -49,6 +54,11 @@ async function v3OpenItemDetail(type,id){
     ]);
   }
   $('#detailBody').innerHTML=html;
+  const detailImg=$('#detailBody .detail-image');
+  if(detailImg)detailImg.addEventListener('error',()=>{
+    detailImg.closest('.detail-image-block')?.remove();
+    $('#detailBody .network-image-source')?.remove();
+  },{once:true});
   $('#detailActions').innerHTML=
     '<button class="primary-btn" data-detail-log="'+type+':'+id+'" type="button">'+(type==='product'?'使用を記録':'実施を記録')+'</button>'+
     '<button class="secondary-btn" data-detail-edit="'+type+':'+id+'" type="button">編集</button>'+
