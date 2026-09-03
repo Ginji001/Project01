@@ -6,6 +6,7 @@ on:
     paths:
       - "docs/skincare-pwa/**"
       - "docs/hachiware-solitaire/**"
+      - "docs/cosmetics-manager-pwa/**"
       - ".github/workflows/skincare-pages.yml"
   workflow_dispatch:
 
@@ -39,6 +40,8 @@ jobs:
           cp -R docs/skincare-pwa/. _site/
           mkdir -p _site/hachiware-solitaire
           cp -R docs/hachiware-solitaire/. _site/hachiware-solitaire/
+          mkdir -p _site/cosmetics-manager-pwa
+          cp -R docs/cosmetics-manager-pwa/. _site/cosmetics-manager-pwa/
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
