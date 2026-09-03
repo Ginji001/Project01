@@ -201,3 +201,47 @@ window.addEventListener('hashchange',()=>v3OpenScreen((location.hash||'#home').s
 const v3Start=V3_VALID_SCREENS.includes(v3CurrentScreen)?v3CurrentScreen:'home';
 v3OpenScreen(v3Start,false);
 renderAll();
+
+
+function v3NormalizeProductName(name){
+  return String(name||'').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
+}
+async function v3MergeProductsFile(file){
+  try{
+    const payload=JSON.parse(await file.text());
+    const incoming=Array.isArray(payload?.products)?payload.products:(Array.isArray(payload?.data?.products)?payload.data.products:null);
+    if(!incoming)throw new Error('invalid');
+    let added=0,updated=0,skipped=0;
+    const now=new Date().toISOString();
+    for(const raw of incoming){
+      if(!raw||!raw.name){skipped++;continue}
+      const key=v3NormalizeProductName(raw.name);
+      const existing=data.products.find(p=>v3NormalizeProductName(p.name)===key);
+      const clean={...raw};
+      delete clean.id;delete clean.imageId;delete clean.createdAt;delete clean.updatedAt;
+      if(existing){
+        const keepImage=existing.imageId;
+        const keepCreated=existing.createdAt;
+        Object.assign(existing,clean,{id:existing.id,createdAt:keepCreated||now,updatedAt:now});
+        if(keepImage)existing.imageId=keepImage;
+        updated++;
+      }else{
+        data.products.push({...clean,id:uid('product'),createdAt:now,updatedAt:now,imageId:null});
+        added++;
+      }
+    }
+    saveData();
+    toast('製品を追加登録しました');
+    v3OpenInfo('製品リストの登録完了','<div class="info-stats"><p><span>新規追加</span><strong>'+added+'件</strong></p><p><span>既存を更新</span><strong>'+updated+'件</strong></p><p><span>読み飛ばし</span><strong>'+skipped+'件</strong></p></div><p class="info-note">既存の写真と作成日時は保持しています。同名製品は重複させず、管理情報だけ更新しました。</p>');
+  }catch(e){
+    toast('製品リストを読み込めません');
+  }finally{
+    if($('#mergeProductsInput'))$('#mergeProductsInput').value='';
+  }
+}
+if($('#mergeProductsInput')){
+  $('#mergeProductsInput').addEventListener('change',e=>{
+    const file=e.target.files?.[0];
+    if(file)v3MergeProductsFile(file);
+  });
+}
