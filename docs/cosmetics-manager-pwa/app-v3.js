@@ -206,42 +206,68 @@ renderAll();
 function v3NormalizeProductName(name){
   return String(name||'').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
 }
+function v3MergeProductArray(incoming,{showInfo=true,goProducts=false}={}){
+  if(!Array.isArray(incoming))throw new Error('invalid products');
+  let added=0,updated=0,skipped=0;
+  const now=new Date().toISOString();
+  for(const raw of incoming){
+    if(!raw||!raw.name){skipped++;continue}
+    const key=v3NormalizeProductName(raw.name);
+    const existing=data.products.find(p=>v3NormalizeProductName(p.name)===key);
+    const clean={...raw};
+    delete clean.id;delete clean.imageId;delete clean.createdAt;delete clean.updatedAt;
+    if(existing){
+      const keepImage=existing.imageId;
+      const keepCreated=existing.createdAt;
+      Object.assign(existing,clean,{id:existing.id,createdAt:keepCreated||now,updatedAt:now});
+      if(keepImage)existing.imageId=keepImage;
+      updated++;
+    }else{
+      data.products.push({...clean,id:uid('product'),createdAt:now,updatedAt:now,imageId:null});
+      added++;
+    }
+  }
+  saveData();
+  if(goProducts)v3OpenScreen('products',true);
+  toast('スキンケア製品を登録しました');
+  if(showInfo){
+    v3OpenInfo('スキンケア製品管理から登録完了','<div class="info-stats"><p><span>新規追加</span><strong>'+added+'件</strong></p><p><span>既存を更新</span><strong>'+updated+'件</strong></p><p><span>読み飛ばし</span><strong>'+skipped+'件</strong></p></div><p class="info-note">現在の23製品を端末内へ登録しました。同名製品は重複せず更新され、既存写真は保持されます。</p>');
+  }
+  return {added,updated,skipped};
+}
+function v3ImportManagedProducts({showInfo=true,goProducts=true}={}){
+  const incoming=window.SKincareManagedProducts;
+  if(!Array.isArray(incoming)||!incoming.length){
+    toast('内蔵製品データを読み込めません');
+    return null;
+  }
+  return v3MergeProductArray(incoming,{showInfo,goProducts});
+}
 async function v3MergeProductsFile(file){
   try{
     const payload=JSON.parse(await file.text());
     const incoming=Array.isArray(payload?.products)?payload.products:(Array.isArray(payload?.data?.products)?payload.data.products:null);
     if(!incoming)throw new Error('invalid');
-    let added=0,updated=0,skipped=0;
-    const now=new Date().toISOString();
-    for(const raw of incoming){
-      if(!raw||!raw.name){skipped++;continue}
-      const key=v3NormalizeProductName(raw.name);
-      const existing=data.products.find(p=>v3NormalizeProductName(p.name)===key);
-      const clean={...raw};
-      delete clean.id;delete clean.imageId;delete clean.createdAt;delete clean.updatedAt;
-      if(existing){
-        const keepImage=existing.imageId;
-        const keepCreated=existing.createdAt;
-        Object.assign(existing,clean,{id:existing.id,createdAt:keepCreated||now,updatedAt:now});
-        if(keepImage)existing.imageId=keepImage;
-        updated++;
-      }else{
-        data.products.push({...clean,id:uid('product'),createdAt:now,updatedAt:now,imageId:null});
-        added++;
-      }
-    }
-    saveData();
-    toast('製品を追加登録しました');
-    v3OpenInfo('製品リストの登録完了','<div class="info-stats"><p><span>新規追加</span><strong>'+added+'件</strong></p><p><span>既存を更新</span><strong>'+updated+'件</strong></p><p><span>読み飛ばし</span><strong>'+skipped+'件</strong></p></div><p class="info-note">既存の写真と作成日時は保持しています。同名製品は重複させず、管理情報だけ更新しました。</p>');
+    v3MergeProductArray(incoming,{showInfo:true,goProducts:true});
   }catch(e){
     toast('製品リストを読み込めません');
   }finally{
-    $('[data-merge-products-input]').forEach(input=>input.value='');
+    $$('[data-merge-products-input]').forEach(input=>input.value='');
   }
 }
-$('[data-merge-products-input]').forEach(input=>{
+$$('[data-merge-products-input]').forEach(input=>{
   input.addEventListener('change',e=>{
     const file=e.target.files?.[0];
     if(file)v3MergeProductsFile(file);
   });
 });
+$('#importManagedProductsBtn')?.addEventListener('click',()=>v3ImportManagedProducts());
+$('#settingsImportManagedProductsBtn')?.addEventListener('click',()=>v3ImportManagedProducts());
+
+const v3Params=new URLSearchParams(location.search);
+if(v3Params.get('import')==='skincare'){
+  v3ImportManagedProducts({showInfo:true,goProducts:true});
+  v3Params.delete('import');
+  const qs=v3Params.toString();
+  history.replaceState({screen:'products'},'',location.pathname+(qs?'?'+qs:'')+'#products');
+}
