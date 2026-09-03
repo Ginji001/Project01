@@ -133,7 +133,7 @@ async function openEditor(type,id=null){
   editorState={type,id,imageBlob:null,imageId:item?.imageId||null,removeImage:false};
   $('#editorEyebrow').textContent=id?'編集':'新規登録';
   $('#editorTitle').textContent=(type==='product'?'製品':'施術')+'を'+(id?'編集':'登録');
-  $('#editorFields').innerHTML=type==='product'?productFields(item):treatmentFields(item);
+  $('#editorFields').innerHTML=type==='product'?productFields(item||{}):treatmentFields(item||{});
   $('#editorDialog').showModal();
   $('#imageInput').addEventListener('change',handleImagePick);
   $('#removePhotoBtn').addEventListener('click',()=>{
