@@ -154,6 +154,20 @@ treatmentFields=function(item={}){
     textAreaField('notes','その他メモ',item.notes,'施術条件や経過など');
 };
 
+async function v2ProductVisual(item){
+  if(item.imageId){
+    try{
+      const local=await getImageUrl(item.imageId);
+      if(local)return {url:local,remote:false,source:null};
+    }catch{}
+  }
+  const remote=window.productImageFor?.(item.name);
+  return remote?.image?{url:remote.image,remote:true,source:remote.source||null}:{url:null,remote:false,source:null};
+}
+function v2ProductImageMarkup(item,visual){
+  if(!visual?.url)return '<div class="item-image-placeholder" aria-hidden="true">▣</div>';
+  return '<span class="item-image-wrap"><img class="item-image" loading="lazy" src="'+v2Esc(visual.url)+'" alt="'+v2Esc(item.name)+'の写真"><span class="item-image-placeholder image-fallback" aria-hidden="true">▣</span></span>';
+}
 function v2ProductMatch(item){
   const q=$('#productSearch').value.trim().toLowerCase(),status=$('#productStatusFilter').value,frame=$('#productFrameFilter').value,risk=$('#productRiskFilter').value;
   const text=[item.name,item.brand,item.category,item.ingredients,item.purpose,item.notes,item.caution,item.useFrame,item.days].join(' ').toLowerCase();
@@ -164,10 +178,10 @@ renderProducts=async function(){
   if(!items.length){list.innerHTML='<div class="empty-state">'+(data.products.length?'条件に合う製品はありません。':'製品はまだ登録されていません。')+'</div>';return}
   list.innerHTML='';
   for(const item of items){
-    const url=item.imageId?await getImageUrl(item.imageId):null;
+    const visual=await v2ProductVisual(item);
     const card=document.createElement('article');card.className='item-card';
     card.innerHTML='<div class="item-card-main">'+
-      (url?'<img class="item-image" src="'+url+'" alt="'+v2Esc(item.name)+'の写真">':'<div class="item-image-placeholder" aria-hidden="true">▣</div>')+
+      v2ProductImageMarkup(item,visual)+
       '<div class="item-meta"><div class="item-topline"><span class="badge">'+v2Esc(item.status||'使用中')+'</span>'+
       (item.category?'<span class="badge muted">'+v2Esc(item.category)+'</span>':'')+
       (item.risk?'<span class="badge risk-'+v2Esc(item.risk)+'">刺激 '+v2Esc(item.risk)+'</span>':'')+
@@ -182,6 +196,12 @@ renderProducts=async function(){
       '<div><dt>併用・注意</dt><dd>'+v2Esc(item.caution||item.notes||'未設定')+'</dd></div></dl>'+
       (item.category==='処方薬'?'<p class="inline-note">処方薬はアプリ内設定より、医師・薬剤師からの指示を優先してください。</p>':'')+
       '</details><div class="item-actions"><button class="log" data-product-log="'+item.id+'" type="button">使用記録</button><button data-product-edit="'+item.id+'" type="button">編集</button><button class="delete" data-product-delete="'+item.id+'" type="button">削除</button></div>';
+    const img=card.querySelector('.item-image-wrap .item-image');
+    if(img)img.addEventListener('error',()=>{
+      img.style.display='none';
+      const fallback=card.querySelector('.item-image-wrap .image-fallback');
+      if(fallback)fallback.style.display='grid';
+    },{once:true});
     list.appendChild(card);
   }
 };
