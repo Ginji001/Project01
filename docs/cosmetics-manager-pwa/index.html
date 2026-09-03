@@ -8,10 +8,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="美容管理">
-  <link rel="manifest" href="manifest.webmanifest?v=9">
+  <link rel="manifest" href="manifest.webmanifest?v=10">
   <link rel="icon" href="icons/icon-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
   <title>化粧品・施術管理</title>
 </head>
 <body>
@@ -90,7 +90,7 @@
             <input id="productSearch" type="search" placeholder="製品名・ブランド・成分で検索">
           </label>
           <div class="toolbar-actions">
-            <label class="secondary-btn compact import-label">⇩ 一括登録<input class="merge-products-input" data-merge-products-input type="file" accept="application/json,.json"></label>
+            <button id="importManagedProductsBtn" class="secondary-btn compact" type="button">23製品を登録</button>
             <button class="primary-btn compact" data-action="new-product" type="button">＋ 登録</button>
           </div>
         </div>
@@ -135,7 +135,8 @@
         <section class="panel settings-panel">
           <h2>データ</h2>
           <button id="exportBtn" class="setting-row" type="button"><span><strong>バックアップを書き出す</strong><small>製品・施術・履歴・写真をJSONで保存</small></span><span>›</span></button>
-          <label class="setting-row file-row"><span><strong>製品リストを追加登録</strong><small>既存データを残して製品JSONを取り込み</small></span><span>›</span><input id="mergeProductsInput" class="merge-products-input" data-merge-products-input type="file" accept="application/json,.json"></label>
+          <button id="settingsImportManagedProductsBtn" class="setting-row" type="button"><span><strong>スキンケア製品管理から登録</strong><small>現在の23製品を直接追加・更新</small></span><span>›</span></button>
+          <label class="setting-row file-row"><span><strong>製品JSONを追加登録</strong><small>任意の製品JSONを既存データへ追加</small></span><span>›</span><input id="mergeProductsInput" class="merge-products-input" data-merge-products-input type="file" accept="application/json,.json"></label>
           <label class="setting-row file-row"><span><strong>バックアップから復元</strong><small>保存済みJSONを読み込み</small></span><span>›</span><input id="importInput" type="file" accept="application/json,.json"></label>
           <button id="resetBtn" class="setting-row danger-row" type="button"><span><strong>全データを削除</strong><small>この端末の登録内容を初期化</small></span><span>›</span></button>
         </section>
@@ -265,8 +266,9 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=9" defer></script>
-  <script src="app-v2.js?v=9" defer></script>
-  <script src="app-v3.js?v=9" defer></script>
+  <script src="app.js?v=10" defer></script>
+  <script src="app-v2.js?v=10" defer></script>
+  <script src="skincare-seed.js?v=10" defer></script>
+  <script src="app-v3.js?v=10" defer></script>
 </body>
 </html>
