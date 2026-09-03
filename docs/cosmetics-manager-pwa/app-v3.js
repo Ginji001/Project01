@@ -236,12 +236,12 @@ async function v3MergeProductsFile(file){
   }catch(e){
     toast('製品リストを読み込めません');
   }finally{
-    if($('#mergeProductsInput'))$('#mergeProductsInput').value='';
+    $('[data-merge-products-input]').forEach(input=>input.value='');
   }
 }
-if($('#mergeProductsInput')){
-  $('#mergeProductsInput').addEventListener('change',e=>{
+$('[data-merge-products-input]').forEach(input=>{
+  input.addEventListener('change',e=>{
     const file=e.target.files?.[0];
     if(file)v3MergeProductsFile(file);
   });
-}
+});
