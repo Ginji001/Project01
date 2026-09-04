@@ -1,1 +1,0 @@
-{"name":"スキンケア管理","short_name":"スキンケア","description":"朝夜のルーティン、製品、履歴、肌写真を端末内で管理する日本語PWA","lang":"ja","start_url":"./","scope":"./","display":"standalone","orientation":"portrait","background_color":"#f4f8f7","theme_color":"#176f73","icons":[{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}

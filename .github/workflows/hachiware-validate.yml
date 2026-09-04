@@ -1,0 +1,30 @@
+name: Hachiware Validate
+
+on:
+  push:
+    branches: [hachiware-bullet]
+  pull_request:
+    branches: [hachiware-bullet]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Required files
+        run: |
+          test -f index.html
+          test -f app.js.gz
+          test -f styles.css.gz
+          test -f manifest.webmanifest
+          test -f sw.js
+      - name: Manifest JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
+      - name: Service worker syntax
+        run: node --check sw.js
+      - name: No obvious secrets
+        run: |
+          ! grep -R -nE '(^|[^A-Za-z])(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)' . --exclude-dir=.git
