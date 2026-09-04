@@ -1,18 +1,53 @@
-<html>
-
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" type="text/css">
-    <link rel="stylesheet" href="https://pingendo.com/assets/bootstrap/bootstrap-4.0.0-beta.1.css" rel="stylesheet" type="text/css">
-  </head>
-
-  </head>
-
-  <body>
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
-  </body>
-  
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="ハチワレバレット — シンプルなバレットジャーナルPWA">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <title>ハチワレバレット</title>
+  <style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Yu Gothic",sans-serif;background:#f5f7fb;color:#111827}#boot{padding:32px;text-align:center}</style>
+</head>
+<body>
+  <div id="boot">ハチワレバレットを読み込み中…</div>
+  <div id="app" class="app-shell" hidden>
+    <header class="topbar">
+      <button id="menuBtn" class="icon-btn mobile-only" aria-label="メニューを開く">☰</button>
+      <div class="brand" aria-label="ハチワレバレット"><span class="brand-mark" aria-hidden="true">◐</span><span>ハチワレバレット</span></div>
+      <div class="top-actions"><span id="saveState" class="save-state" aria-live="polite">保存済み</span><button id="quickAddBtn" class="primary-btn">＋ 追加</button></div>
+    </header>
+    <aside id="sidebar" class="sidebar">
+      <nav class="nav-list" aria-label="メインメニュー">
+        <button class="nav-item active" data-view="today"><span>◉</span><span>今日</span></button>
+        <button class="nav-item" data-view="daily"><span>≡</span><span>デイリー</span></button>
+        <button class="nav-item" data-view="monthly"><span>▦</span><span>マンスリー</span></button>
+        <button class="nav-item" data-view="future"><span>⌁</span><span>フューチャー</span></button>
+        <button class="nav-item" data-view="habits"><span>✓</span><span>習慣</span></button>
+        <button class="nav-item" data-view="finance"><span>¥</span><span>家計</span></button>
+        <button class="nav-item" data-view="collections"><span>□</span><span>コレクション</span></button>
+      </nav>
+      <div class="sidebar-bottom"><button class="nav-item" data-view="key"><span>•</span><span>記号ルール</span></button><button class="nav-item" data-view="settings"><span>⚙</span><span>設定</span></button></div>
+    </aside>
+    <main id="main" class="main-content" tabindex="-1"><div id="viewRoot"></div></main>
+  </div>
+  <div id="modalBackdrop" class="modal-backdrop hidden" role="presentation"><section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><h2 id="modalTitle">追加</h2><button id="modalClose" class="icon-btn" aria-label="閉じる">×</button></div><div id="modalBody" class="modal-body"></div></section></div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <input id="importInput" type="file" accept="application/json,.json" hidden>
+  <script>
+  (async()=>{
+    try{
+      if(!('DecompressionStream' in window)) throw new Error('このブラウザは圧縮ソースの展開に対応していません。Braveを最新版にしてください。');
+      const unzip=async path=>{const r=await fetch(path,{cache:'no-store'});if(!r.ok)throw new Error(path+' '+r.status);return new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).text()};
+      const [css,js]=await Promise.all([unzip('./styles.css.gz'),unzip('./app.js.gz')]);
+      const style=document.createElement('style');style.textContent=css;document.head.appendChild(style);
+      document.getElementById('boot').remove();document.getElementById('app').hidden=false;
+      (0,eval)(js);
+    }catch(e){document.getElementById('boot').textContent='読み込みに失敗しました: '+e.message;console.error(e)}
+  })();
+  </script>
+</body>
 </html>
