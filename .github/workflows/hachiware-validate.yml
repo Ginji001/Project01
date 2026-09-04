@@ -58,7 +58,7 @@ jobs:
       - name: Production isolation guard
         run: |
           grep -F "development mirror" PRODUCTION_STATUS.md
-          grep -F "do not replace production" README.md
+          grep -F "本番URLの置き換えには使用しません" README.md
           grep -F "Do not overwrite the production URL" RECOVERY_TARGET.md
 
       - name: No obvious secrets
