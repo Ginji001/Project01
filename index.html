@@ -9,17 +9,23 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./src/styles.css">
   <title>ハチワレバレット</title>
-  <style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Yu Gothic",sans-serif;background:#f5f7fb;color:#111827}#boot{padding:32px;text-align:center}</style>
 </head>
 <body>
-  <div id="boot">ハチワレバレットを読み込み中…</div>
-  <div id="app" class="app-shell" hidden>
+  <div id="app" class="app-shell">
     <header class="topbar">
       <button id="menuBtn" class="icon-btn mobile-only" aria-label="メニューを開く">☰</button>
-      <div class="brand" aria-label="ハチワレバレット"><span class="brand-mark" aria-hidden="true">◐</span><span>ハチワレバレット</span></div>
-      <div class="top-actions"><span id="saveState" class="save-state" aria-live="polite">保存済み</span><button id="quickAddBtn" class="primary-btn">＋ 追加</button></div>
+      <div class="brand" aria-label="ハチワレバレット">
+        <span class="brand-mark" aria-hidden="true">◐</span>
+        <span>ハチワレバレット</span>
+      </div>
+      <div class="top-actions">
+        <span id="saveState" class="save-state" aria-live="polite">保存済み</span>
+        <button id="quickAddBtn" class="primary-btn">＋ 追加</button>
+      </div>
     </header>
+
     <aside id="sidebar" class="sidebar">
       <nav class="nav-list" aria-label="メインメニュー">
         <button class="nav-item active" data-view="today"><span>◉</span><span>今日</span></button>
@@ -30,24 +36,29 @@
         <button class="nav-item" data-view="finance"><span>¥</span><span>家計</span></button>
         <button class="nav-item" data-view="collections"><span>□</span><span>コレクション</span></button>
       </nav>
-      <div class="sidebar-bottom"><button class="nav-item" data-view="key"><span>•</span><span>記号ルール</span></button><button class="nav-item" data-view="settings"><span>⚙</span><span>設定</span></button></div>
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-view="key"><span>•</span><span>記号ルール</span></button>
+        <button class="nav-item" data-view="settings"><span>⚙</span><span>設定</span></button>
+      </div>
     </aside>
-    <main id="main" class="main-content" tabindex="-1"><div id="viewRoot"></div></main>
+
+    <main id="main" class="main-content" tabindex="-1">
+      <div id="viewRoot"></div>
+    </main>
   </div>
-  <div id="modalBackdrop" class="modal-backdrop hidden" role="presentation"><section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><h2 id="modalTitle">追加</h2><button id="modalClose" class="icon-btn" aria-label="閉じる">×</button></div><div id="modalBody" class="modal-body"></div></section></div>
+
+  <div id="modalBackdrop" class="modal-backdrop hidden" role="presentation">
+    <section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <h2 id="modalTitle">追加</h2>
+        <button id="modalClose" class="icon-btn" aria-label="閉じる">×</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </section>
+  </div>
+
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   <input id="importInput" type="file" accept="application/json,.json" hidden>
-  <script>
-  (async()=>{
-    try{
-      if(!('DecompressionStream' in window)) throw new Error('このブラウザは圧縮ソースの展開に対応していません。Braveを最新版にしてください。');
-      const unzip=async path=>{const r=await fetch(path,{cache:'no-store'});if(!r.ok)throw new Error(path+' '+r.status);return new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).text()};
-      const [css,js]=await Promise.all([unzip('./styles.css.gz'),unzip('./app.js.gz')]);
-      const style=document.createElement('style');style.textContent=css;document.head.appendChild(style);
-      document.getElementById('boot').remove();document.getElementById('app').hidden=false;
-      (0,eval)(js);
-    }catch(e){document.getElementById('boot').textContent='読み込みに失敗しました: '+e.message;console.error(e)}
-  })();
-  </script>
+  <script src="./src/app.js"></script>
 </body>
 </html>

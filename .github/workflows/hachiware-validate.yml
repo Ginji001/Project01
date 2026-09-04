@@ -18,8 +18,8 @@ jobs:
       - name: Required files
         run: |
           test -f index.html
-          test -f app.js.gz
-          test -f styles.css.gz
+          test -f src/app.js
+          test -f src/styles.css
           test -f manifest.webmanifest
           test -f sw.js
           test -f README.md
@@ -28,36 +28,23 @@ jobs:
           test -f icons/icon-192.png
           test -f icons/icon-512.png
           test -f icons/apple-touch-icon.png
-
-      - name: Compressed source integrity
-        run: |
-          gzip -t app.js.gz
-          gzip -t styles.css.gz
-          gzip -dc app.js.gz > /tmp/hachiware-app.js
-          gzip -dc styles.css.gz > /tmp/hachiware-styles.css
-          test -s /tmp/hachiware-app.js
-          test -s /tmp/hachiware-styles.css
-
-      - name: Reconstructed source identity
-        run: |
-          echo "0900a4fa3f9141201c2d2d305cabdba75bb6843745b7d1bf1d27a1d1d9515a36  /tmp/hachiware-app.js" | sha256sum -c -
-          echo "bca97d8455a38a879512deec34306d75087ef96d11cdbd915a017cf30c45e6b0  /tmp/hachiware-styles.css" | sha256sum -c -
+          test -s src/app.js
+          test -s src/styles.css
 
       - name: JavaScript syntax
         run: |
-          node --check /tmp/hachiware-app.js
+          node --check src/app.js
           node --check sw.js
 
       - name: Manifest JSON
         run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
 
-      - name: Loader and cache references
+      - name: App and cache references
         run: |
-          grep -F "./app.js.gz" index.html
-          grep -F "./styles.css.gz" index.html
-          grep -F "DecompressionStream" index.html
-          grep -F '"./app.js.gz"' sw.js
-          grep -F '"./styles.css.gz"' sw.js
+          grep -F 'href="./src/styles.css"' index.html
+          grep -F 'src="./src/app.js"' index.html
+          grep -F '"./src/app.js"' sw.js
+          grep -F '"./src/styles.css"' sw.js
           grep -F '"./manifest.webmanifest"' sw.js
 
       - name: Production isolation guard
