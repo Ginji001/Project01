@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ハチバレット データ移行</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Yu Gothic",sans-serif;background:#f5f7fb;color:#111827;margin:0}
+main{max-width:760px;margin:0 auto;padding:24px}
+.card{background:white;border-radius:18px;padding:20px;margin:16px 0;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+h1{font-size:28px} h2{font-size:18px}
+.btn,.bookmark{display:inline-block;background:#111827;color:#fff;text-decoration:none;border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer}
+.secondary{background:#e5e7eb;color:#111827}
+.ok{color:#047857;font-weight:700}.warn{color:#b45309}
+code{background:#eef2f7;padding:2px 6px;border-radius:6px}
+#status{white-space:pre-wrap}
+</style>
+</head>
+<body>
+<main>
+<h1>ハチバレット｜旧データ移行</h1>
+<div class="card">
+<h2>1. 移行ボタンをブックマークバーへ追加</h2>
+<p>下の黒いボタンをBraveのブックマークバーへドラッグしてください。</p>
+<a id="bookmark" class="bookmark" href="#">ハチバレット旧データ回収</a>
+</div>
+<div class="card">
+<h2>2. 旧ハチバレットを開く</h2>
+<button id="openOld" class="btn">旧サイトを開く</button>
+<p>旧サイトが開いたら、今追加した「ハチバレット旧データ回収」を1回クリックします。</p>
+</div>
+<div class="card">
+<h2>3. 自動変換</h2>
+<p>回収できると、この画面へ自動で戻り、新ハチバレットで読めるJSONを保存します。</p>
+<div id="status">待機中</div>
+</div>
+<div class="card">
+<h2>予備</h2>
+<p>別タブ連携がブロックされた場合は、旧サイト側でJSONが自動保存されます。そのファイルをここで選べば自動変換します。</p>
+<input id="file" type="file" accept=".json,application/json">
+</div>
+</main>
+<script>
+const OLD_URL="https://hibicho-daily-journal.emiya2170.chatgpt.site/";
+const statusEl=document.getElementById("status");
+
+function makeBookmarklet(){
+  async function run(){
+    const out={source:"hachiware-old-browser-export",exportedAt:new Date().toISOString(),url:location.href,title:document.title,localStorage:{},sessionStorage:{},indexedDB:{}};
+    for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);out.localStorage[k]=localStorage.getItem(k)}
+    for(let i=0;i<sessionStorage.length;i++){const k=sessionStorage.key(i);out.sessionStorage[k]=sessionStorage.getItem(k)}
+    try{
+      if(indexedDB.databases){
+        const dbs=await indexedDB.databases();
+        for(const info of dbs){
+          if(!info.name)continue;
+          out.indexedDB[info.name]={};
+          await new Promise(resolve=>{
+            const req=indexedDB.open(info.name);
+            req.onerror=()=>resolve();
+            req.onsuccess=()=>{
+              const db=req.result, names=[...db.objectStoreNames];
+              if(!names.length){db.close();resolve();return}
+              let pending=names.length;
+              for(const name of names){
+                try{
+                  const tx=db.transaction(name,"readonly"), store=tx.objectStore(name), all=store.getAll();
+                  all.onsuccess=()=>{out.indexedDB[info.name][name]=all.result; if(--pending===0){db.close();resolve()}};
+                  all.onerror=()=>{out.indexedDB[info.name][name]={error:"read_failed"}; if(--pending===0){db.close();resolve()}};
+                }catch(e){out.indexedDB[info.name][name]={error:String(e)}; if(--pending===0){db.close();resolve()}}
+              }
+            };
+          });
+        }
+      }
+    }catch(e){out.indexedDBError=String(e)}
+    try{
+      if(window.opener && !window.opener.closed){
+        window.opener.postMessage({type:"hachiware-old-data",payload:out},"*");
+        alert("旧データを回収しました。移行画面へ戻ってください。");
+        return;
+      }
+    }catch(e){}
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:"application/json"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="hachiware-old-data-"+new Date().toISOString().slice(0,10)+".json";a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    alert("旧データをJSONで保存しました。");
+  }
+  return "javascript:("+run.toString()+")()";
+}
+
+document.getElementById("bookmark").href=makeBookmarklet();
+document.getElementById("openOld").onclick=()=>window.open(OLD_URL,"hachiwareOld");
+
+function parseMaybe(v){
+  if(typeof v!=="string")return v;
+  try{return JSON.parse(v)}catch{return v}
+}
+function looksLikeState(x){
+  return x && typeof x==="object" && ["entries","monthlyGoals","future","habits","habitChecks","finance","budgets","collections"].some(k=>k in x);
+}
+function findState(payload){
+  const stores=[payload.localStorage||{},payload.sessionStorage||{}];
+  const preferred=["hachiware-bullet-state-v1","hachiware-bullet-state","hachiware-state","bullet-journal-state"];
+  for(const s of stores){
+    for(const k of preferred){if(k in s){const v=parseMaybe(s[k]);if(looksLikeState(v))return {key:k,state:v}}}
+    for(const [k,v0] of Object.entries(s)){
+      if(/hachi|bullet|journal|hibicho/i.test(k)){const v=parseMaybe(v0);if(looksLikeState(v))return {key:k,state:v}}
+    }
+    for(const [k,v0] of Object.entries(s)){const v=parseMaybe(v0);if(looksLikeState(v))return {key:k,state:v}}
+  }
+  for(const [db,storesObj] of Object.entries(payload.indexedDB||{})){
+    for(const [store,rows] of Object.entries(storesObj||{})){
+      if(Array.isArray(rows)){
+        for(const row of rows){if(looksLikeState(row))return {key:`IndexedDB:${db}/${store}`,state:row}}
+      }
+    }
+  }
+  return null;
+}
+function download(name,obj){
+  const blob=new Blob([JSON.stringify(obj,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function convert(payload){
+  const found=findState(payload);
+  if(found){
+    const backup={app:"hachiware-bullet",exportedAt:new Date().toISOString(),data:found.state,migration:{source:payload.url||"",detectedFrom:found.key}};
+    download("hachiware-bullet-backup-"+new Date().toISOString().slice(0,10)+".json",backup);
+    statusEl.className="ok";
+    statusEl.textContent="旧データを検出・変換しました。\n検出元: "+found.key+"\n新ハチバレット用バックアップを保存しました。";
+    return;
+  }
+  download("hachiware-old-data-raw-"+new Date().toISOString().slice(0,10)+".json",payload);
+  statusEl.className="warn";
+  statusEl.textContent="旧データは回収できましたが、自動判定できない形式でした。\n生データを保存しました。このJSONをこのチャットへ渡せば、こちらで変換できます。";
+}
+window.addEventListener("message",e=>{
+  if(e.data?.type==="hachiware-old-data" && e.data.payload)convert(e.data.payload);
+});
+document.getElementById("file").addEventListener("change",async e=>{
+  const f=e.target.files?.[0]; if(!f)return;
+  try{convert(JSON.parse(await f.text()))}catch{statusEl.className="warn";statusEl.textContent="JSONを読み込めませんでした。"}
+});
+</script>
+</body>
+</html>
