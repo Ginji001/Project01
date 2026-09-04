@@ -38,6 +38,11 @@ jobs:
           test -s /tmp/hachiware-app.js
           test -s /tmp/hachiware-styles.css
 
+      - name: Reconstructed source identity
+        run: |
+          echo "0900a4fa3f9141201c2d2d305cabdba75bb6843745b7d1bf1d27a1d1d9515a36  /tmp/hachiware-app.js" | sha256sum -c -
+          echo "bca97d8455a38a879512deec34306d75087ef96d11cdbd915a017cf30c45e6b0  /tmp/hachiware-styles.css" | sha256sum -c -
+
       - name: JavaScript syntax
         run: |
           node --check /tmp/hachiware-app.js
