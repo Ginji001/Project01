@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Required files
         run: |
           test -f index.html
@@ -21,10 +22,45 @@ jobs:
           test -f styles.css.gz
           test -f manifest.webmanifest
           test -f sw.js
+          test -f README.md
+          test -f PRODUCTION_STATUS.md
+          test -f RECOVERY_TARGET.md
+          test -f icons/icon-192.png
+          test -f icons/icon-512.png
+          test -f icons/apple-touch-icon.png
+
+      - name: Compressed source integrity
+        run: |
+          gzip -t app.js.gz
+          gzip -t styles.css.gz
+          gzip -dc app.js.gz > /tmp/hachiware-app.js
+          gzip -dc styles.css.gz > /tmp/hachiware-styles.css
+          test -s /tmp/hachiware-app.js
+          test -s /tmp/hachiware-styles.css
+
+      - name: JavaScript syntax
+        run: |
+          node --check /tmp/hachiware-app.js
+          node --check sw.js
+
       - name: Manifest JSON
         run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
-      - name: Service worker syntax
-        run: node --check sw.js
+
+      - name: Loader and cache references
+        run: |
+          grep -F "./app.js.gz" index.html
+          grep -F "./styles.css.gz" index.html
+          grep -F "DecompressionStream" index.html
+          grep -F '"./app.js.gz"' sw.js
+          grep -F '"./styles.css.gz"' sw.js
+          grep -F '"./manifest.webmanifest"' sw.js
+
+      - name: Production isolation guard
+        run: |
+          grep -F "development mirror" PRODUCTION_STATUS.md
+          grep -F "do not replace production" README.md
+          grep -F "Do not overwrite the production URL" RECOVERY_TARGET.md
+
       - name: No obvious secrets
         run: |
-          ! grep -R -nE '(^|[^A-Za-z])(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)' . --exclude-dir=.git
+          ! grep -R -nE '(^|[^A-Za-z])(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)' . --exclude-dir=.git
