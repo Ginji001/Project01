@@ -1,13 +1,14 @@
-const CACHE_NAME='beauty-manager-pwa-v12';
+const CACHE_NAME='beauty-manager-pwa-v13';
 const APP_SHELL=[
   './',
   './index.html',
-  './styles.css?v=12',
-  './app.js?v=12',
-  './app-v2.js?v=12',
-  './skincare-seed.js?v=12',
-  './app-v3.js?v=12',
-  './manifest.webmanifest?v=12',
+  './styles.css?v=13',
+  './app.js?v=13',
+  './app-v2.js?v=13',
+  './skincare-seed.js?v=13',
+  './app-v3.js?v=13',
+  './identify.js?v=13',
+  './manifest.webmanifest?v=13',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
@@ -24,6 +25,7 @@ self.addEventListener('activate',event=>{
 
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
+  if(new URL(event.request.url).origin!==self.location.origin)return;
 
   if(event.request.mode==='navigate'){
     event.respondWith(

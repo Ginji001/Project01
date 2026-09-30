@@ -40,6 +40,7 @@ async function v3OpenItemDetail(type,id){
       ['施術前の休止目安',Number(item.pauseBefore||0)+'日'],['施術後の休止目安',Number(item.pauseAfter||0)+'日'],
       ['併用・注意メモ',item.caution||'未設定'],['その他メモ',item.notes||'未設定']
     ]);
+    if(/^https:\/\//.test(item.officialSource||''))html+='<a class="official-link" href="'+v2Esc(item.officialSource)+'" target="_blank" rel="noopener noreferrer">公式ページを確認 ↗</a>';
     if(item.category==='処方薬')html+='<p class="detail-warning">処方薬はアプリの設定より、医師・薬剤師の指示を優先してください。</p>';
   }else{
     const last=v2LatestTreatmentLog(item.id);

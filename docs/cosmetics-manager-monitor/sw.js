@@ -1,12 +1,13 @@
-const CACHE_NAME='cosmetics-manager-monitor-v3';
+const CACHE_NAME='cosmetics-manager-monitor-v4';
 const APP_SHELL=[
   './',
   './index.html',
-  './styles.css?v=3',
-  './app.js?v=3',
-  './app-v2.js?v=3',
-  './app-v3.js?v=3',
-  './manifest.webmanifest?v=3',
+  './styles.css?v=4',
+  './app.js?v=4',
+  './app-v2.js?v=4',
+  './app-v3.js?v=4',
+  './identify.js?v=4',
+  './manifest.webmanifest?v=4',
   '../cosmetics-manager-pwa/icons/icon-192.png',
   '../cosmetics-manager-pwa/icons/icon-512.png'
 ];
@@ -25,6 +26,7 @@ self.addEventListener('activate',event=>{
 
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
+  if(new URL(event.request.url).origin!==self.location.origin)return;
 
   if(event.request.mode==='navigate'){
     event.respondWith(
