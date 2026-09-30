@@ -1,14 +1,13 @@
-const CACHE_NAME='beauty-manager-pwa-v11';
+const CACHE_NAME='beauty-manager-pwa-v12';
 const APP_SHELL=[
   './',
   './index.html',
-  './styles.css?v=11',
-  './app.js?v=11',
-  './product-images.js?v=11',
-  './app-v2.js?v=11',
-  './skincare-seed.js?v=11',
-  './app-v3.js?v=11',
-  './manifest.webmanifest?v=11',
+  './styles.css?v=12',
+  './app.js?v=12',
+  './app-v2.js?v=12',
+  './skincare-seed.js?v=12',
+  './app-v3.js?v=12',
+  './manifest.webmanifest?v=12',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
