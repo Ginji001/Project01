@@ -161,7 +161,6 @@ async function v2ProductVisual(item){
       if(local)return {url:local,remote:false,source:null};
     }catch{}
   }
-  if(/^https:\/\//.test(item.officialImage||''))return {url:item.officialImage,remote:true,source:item.officialSource||null};
   return {url:null,remote:false,source:null};
 }
 function v2ProductImageMarkup(item,visual){

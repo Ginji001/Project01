@@ -1,57 +1,44 @@
-/* 製品の特定（バーコード → AI写真解析 → 公式画像との照合）
- * - APIキーと設定はこの端末の localStorage にだけ保存します
- * - 解析する写真は、利用者自身のAPIキーで Anthropic API に直接送信されます
- * - 公式画像はURLだけを端末内の製品データに保存し、この端末の画面でのみ表示します */
+/* 製品の特定（無料・端末内中心）
+ * バーコード読み取り → 無料の製品DB(Open Beauty Facts)検索 → 写真の文字認識(OCR) →
+ * ブランドから公式サイトの検索リンクを作り、利用者が公式ページと見比べて確認します。
+ * APIキーや課金は一切ありません。写真はこの端末の外へ送信しません
+ * （初回のみ、文字認識エンジンと辞書データをCDNから読み込みます）。 */
 (()=>{
 'use strict';
-const SK='beauty-ai-settings';
-const API='https://api.anthropic.com/v1/messages';
-const OBF='https://world.openbeautyfacts.org/api/v2/product/';
-const MODELS=[['claude-opus-5-5','Opus 5.5（高精度・既定）'],['claude-sonnet-5-5','Sonnet 5.5（低コスト）']];
-const CATS=['クレンジング','洗顔','化粧水','美容液','乳液','クリーム','日焼け止め','パック','処方薬','その他'];
+const OBF='https://world.openbeautyfacts.org/';
+const TESS='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
 
-const loadSettings=()=>{let s={};try{s=JSON.parse(localStorage.getItem(SK)||'{}')}catch{}return {key:'',model:MODELS[0][0],...s}};
-const saveSettings=s=>{try{localStorage.setItem(SK,JSON.stringify(s))}catch{}};
+/* ブランド → 公式サイトのドメイン（検索リンク用。必要に応じて追記できます） */
+const BRANDS=[
+  ['KOSÉ / ONE BY KOSÉ',['onebykose','kose','コーセー','雪肌精'],'kose.co.jp'],
+  ['トゥヴェール',['tvert','トゥヴェール'],'tvert.jp'],
+  ['SKIN1004',['skin1004'],'skin1004.com'],
+  ['ロート製薬',['rohto','ロート','メラノcc','melano'],'rohto.co.jp'],
+  ['COSRX',['cosrx'],'cosrx.co.kr'],
+  ['Dear Klairs',['klairs','クレアス'],'klairscosmetics.com'],
+  ['SOFINA',['sofina','ソフィーナ'],'sofina.co.jp'],
+  ['CELORABY',['celoraby'],'celoraby.com'],
+  ['MEDIHEAL',['mediheal','メディヒール'],'mediheal.jp'],
+  ['DW-EGF',['easydew','dw-egf'],'easydew.us'],
+  ['マルホ',['maruho','マルホ'],'maruho.co.jp'],
+  ['資生堂 / アクアレーベル',['shiseido','資生堂','アクアレーベル','aqualabel'],'shiseido.co.jp'],
+  ['Anua',['anua','アヌア'],'anua.com'],
+  ['花王',['kao','花王'],'kao.com'],
+  ['キュレル',['curel','キュレル'],'curel.net'],
+  ['ビオレ',['biore','ビオレ'],'biore.jp'],
+  ['肌ラボ',['hadalabo','肌ラボ'],'hadalabo.jp'],
+  ['ファンケル',['fancl','ファンケル'],'fancl.co.jp'],
+  ['ポーラ',['pola','ポーラ'],'pola.co.jp'],
+  ['DHC',['dhc'],'dhc.co.jp'],
+  ['オルビス',['orbis','オルビス'],'orbis.co.jp'],
+  ['ニベア',['nivea','ニベア'],'nivea.co.jp'],
+  ['ラ ロッシュ ポゼ',['laroche','ラロッシュ'],'laroche-posay.jp']
+];
+
 const esc=s=>escapeHtml(String(s??''));
+const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/\s+/g,'');
 const httpsUrl=u=>/^https:\/\/[^\s"'<>]+$/.test(u||'')?u:'';
-const blobToB64=async blob=>(await blobToDataUrl(blob)).split(',')[1];
-const imgPart=async blob=>({type:'image',source:{type:'base64',media_type:blob.type||'image/jpeg',data:await blobToB64(blob)}});
-
-/* ---------- Claude API（ブラウザから直接） ---------- */
-async function callClaude(content,{search=false}={}){
-  const s=loadSettings();
-  if(!s.key)throw new Error('NO_KEY');
-  const messages=[{role:'user',content}];
-  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),150000);
-  try{
-    for(let turn=0;turn<4;turn++){
-      const body={model:s.model,max_tokens:4000,output_config:{effort:'medium'},messages};
-      if(search)body.tools=[{type:'web_search_20260209',name:'web_search',max_uses:5}];
-      const res=await fetch(API,{method:'POST',signal:ctl.signal,headers:{
-        'content-type':'application/json','x-api-key':s.key,'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)});
-      const json=await res.json().catch(()=>({}));
-      if(!res.ok){const e=new Error(json?.error?.message||'HTTP '+res.status);e.status=res.status;throw e}
-      if(json.stop_reason==='pause_turn'){messages.push({role:'assistant',content:json.content});continue}
-      if(json.stop_reason==='refusal')throw new Error('モデルが応答を拒否しました');
-      return json.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');
-    }
-    throw new Error('検索が完了しませんでした。もう一度お試しください');
-  }finally{clearTimeout(timer)}
-}
-function lastJson(text){
-  const found=String(text).match(/\{[^{}]*\}/g)||[];
-  for(let i=found.length-1;i>=0;i--){try{return JSON.parse(found[i])}catch{}}
-  throw new Error('解析結果を読み取れませんでした');
-}
-function explainError(e){
-  if(e.message==='NO_KEY')return 'APIキーが未設定です';
-  if(e.name==='AbortError')return '時間がかかりすぎました。もう一度お試しください';
-  if(e.status===401||e.status===403)return 'APIキーが正しくないか、権限がありません';
-  if(e.status===429)return '利用制限に達しました。しばらくしてからお試しください';
-  if(e instanceof TypeError)return '通信に失敗しました。ネットワークを確認してください';
-  return e.message||'失敗しました';
-}
+const searchUrl=q=>'https://www.google.com/search?q='+encodeURIComponent(q);
 
 /* ---------- バーコード ---------- */
 async function detectBarcode(blob){
@@ -62,92 +49,83 @@ async function detectBarcode(blob){
     return (await det.detect(bmp))[0]?.rawValue||null;
   }catch{return null}
 }
-async function lookupBarcode(code){
+async function obfFetch(path){
   try{
-    const res=await fetch(OBF+encodeURIComponent(code)+'.json?fields=product_name,brands',{headers:{Accept:'application/json'}});
-    const j=await res.json();
-    if(j.status===1&&j.product)return [j.product.brands,j.product.product_name].filter(Boolean).join(' ').trim()||null;
-  }catch{}
-  return null;
+    const res=await fetch(OBF+path,{headers:{Accept:'application/json'}});
+    return res.ok?await res.json():null;
+  }catch{return null}
+}
+const obfItem=p=>({name:p.product_name||'',brand:(p.brands||'').split(',')[0].trim(),ingredients:(p.ingredients_text||'').slice(0,120),code:p.code||''});
+async function lookupBarcode(code){
+  const j=await obfFetch('api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,brands,ingredients_text,code');
+  return j?.status===1&&j.product&&j.product.product_name?obfItem(j.product):null;
+}
+async function searchDb(text){
+  if(!text)return [];
+  const j=await obfFetch('cgi/search.pl?search_simple=1&action=process&json=1&page_size=5&fields=product_name,brands,ingredients_text,code&search_terms='+encodeURIComponent(text));
+  return (j?.products||[]).filter(p=>p.product_name).map(obfItem);
 }
 
-/* ---------- 特定 → 公式画像との照合 ---------- */
-async function identify({blob,jan,hint}){
-  const parts=[];
-  if(blob)parts.push(await imgPart(blob));
-  parts.push({type:'text',text:
-'化粧品・スキンケア製品の照合担当として、次の情報から製品を特定してください。\n'+
-(blob?'・添付画像は利用者が撮った製品の写真です。\n':'')+
-(jan?'・バーコード(JAN/EAN): '+jan+'\n':'')+
-(hint?'・バーコードDBの候補: '+hint+'（不正確な場合があります）\n':'')+
-'\nWeb検索で、メーカーまたは公式ブランドサイトの商品ページを探してください。\n'+
-'- 推測で埋めず、確認できない項目は空文字にする。\n'+
-'- 通販モール・転売・レビュー・ブログは officialPageUrl / officialImageUrl に使わない。\n'+
-'- officialImageUrl は公式ページ上の商品画像ファイルの直接URL(https)。\n'+
-'- category は次のどれか、または空文字: '+CATS.join('、')+'\n'+
-'- ingredients は公式に記載された主成分・有効成分の範囲で短く。\n'+
-'最後に、次のキーだけのJSONオブジェクトを1つ出力してください（前後の説明は不要）:\n'+
-'{"name":"","brand":"","category":"","ingredients":"","purpose":"","officialPageUrl":"","officialImageUrl":"","confidence":0.0,"reason":""}\n'+
-'confidence は特定の確からしさ(0〜1)、reason は根拠を1文で。'});
-  const r=lastJson(await callClaude(parts,{search:true}));
-  const out={
-    name:String(r.name||''),brand:String(r.brand||''),category:CATS.includes(r.category)?r.category:'',
-    ingredients:String(r.ingredients||''),purpose:String(r.purpose||''),
-    officialPage:httpsUrl(r.officialPageUrl),officialImage:httpsUrl(r.officialImageUrl),
-    confidence:Math.max(0,Math.min(1,Number(r.confidence)||0)),reason:String(r.reason||''),
-    verify:{state:'nophoto'}
-  };
-  if(blob&&out.officialImage){
+/* ---------- 文字認識（端末内OCR） ---------- */
+let tessPromise=null;
+function loadTesseract(){
+  if(window.Tesseract)return Promise.resolve(window.Tesseract);
+  return tessPromise||(tessPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');s.src=TESS;
+    s.onload=()=>resolve(window.Tesseract);
+    s.onerror=()=>{tessPromise=null;reject(new Error('文字認識エンジンを読み込めませんでした（通信を確認してください）'))};
+    document.head.appendChild(s);
+  }));
+}
+async function recognize(blob,onProgress){
+  const T=await loadTesseract();
+  const r=await T.recognize(blob,'jpn+eng',{logger:m=>{if(m.status==='recognizing text')onProgress?.(m.progress)}});
+  return String(r.data?.text||'');
+}
+function textLines(text){
+  const cjoin=/(?<=[぀-ヿ㐀-鿿])\s+(?=[぀-ヿ㐀-鿿])/g;
+  const seen=new Set();
+  return text.split(/\n+/).map(l=>l.normalize('NFKC').replace(cjoin,'').replace(/[|｜_~^*]/g,' ').replace(/\s+/g,' ').trim())
+    .filter(l=>{
+      const letters=(l.match(/[A-Za-z぀-ヿ㐀-鿿]/g)||[]).length;
+      if(l.length<4||l.length>40||letters<4||letters/l.length<.6||seen.has(l))return false;
+      seen.add(l);return true;
+    });
+}
+function pickCandidates(lines){
+  return lines.map(l=>{
+      const cjk=/[぀-ヿ㐀-鿿]/.test(l),caps=/[A-Z]{3,}/.test(l);
+      return {l,score:l.length+(cjk?6:0)+(caps?3:0)};
+    }).sort((a,b)=>b.score-a.score).slice(0,4).map(x=>x.l);
+}
+function findBrand(...texts){
+  const hay=norm(texts.filter(Boolean).join(' '));
+  if(!hay)return null;
+  return BRANDS.find(b=>b[1].some(k=>hay.includes(norm(k))))||null;
+}
+
+/* ---------- 特定の実行 ---------- */
+async function analyze({blob,jan},onStatus){
+  const out={jan:jan||null,candidates:[],db:[],brand:null,ocrFailed:false};
+  if(blob&&!out.jan){onStatus('バーコードを確認中…');out.jan=await detectBarcode(blob)}
+  let byJan=null;
+  if(out.jan){onStatus('バーコード '+out.jan+' を製品データベースで検索中…');byJan=await lookupBarcode(out.jan)}
+  if(byJan)out.db.push(byJan);
+  let lines=[],raw='';
+  if(blob&&!byJan){
     try{
-      const v=lastJson(await callClaude([
-        await imgPart(blob),{type:'image',source:{type:'url',url:out.officialImage}},
-        {type:'text',text:'1枚目は利用者が撮った製品写真、2枚目はメーカー公式サイトの商品画像です。同じ製品（同一の商品名・シリーズ）か判定してください。容量違いは同一扱い、別シリーズ・別商品は不一致です。次のJSONだけを出力: {"match":true,"confidence":0.0,"reason":""}'}
-      ]));
-      out.verify={state:v.match?'match':'mismatch',confidence:Number(v.confidence)||0,reason:String(v.reason||'')};
-    }catch(e){
-      if(e.message==='NO_KEY'||e.status===401)throw e;
-      out.verify={state:'failed'};
-    }
-  }else if(blob){out.verify={state:'failed'}}
+      onStatus('写真の文字を読み取り中…（初回はエンジンの読み込みで少し時間がかかります）');
+      raw=await recognize(blob,p=>onStatus('写真の文字を読み取り中… '+Math.round(p*100)+'%'));
+      lines=textLines(raw);
+    }catch(e){out.ocrFailed=e.message||true}
+  }
+  out.candidates=pickCandidates(lines);
+  if(!byJan&&out.candidates[0]){
+    onStatus('製品データベースを検索中…');
+    out.db.push(...await searchDb(out.candidates[0]));
+  }
+  out.brand=findBrand(byJan?.brand,byJan?.name,raw);
   return out;
-}
-
-/* ---------- 設定ダイアログ ---------- */
-function ensureSettingsDialog(){
-  let d=document.getElementById('aiDialog');if(d)return d;
-  d=document.createElement('dialog');d.id='aiDialog';d.className='confirm-dialog';
-  d.innerHTML='<form class="confirm-card" method="dialog"><h2>AI製品特定の設定</h2>'+
-    '<div class="field"><label for="aiKey">Anthropic APIキー</label><input id="aiKey" type="password" autocomplete="off" placeholder="sk-ant-..."></div>'+
-    '<div class="field"><label for="aiModel">モデル</label><select id="aiModel">'+MODELS.map(m=>'<option value="'+m[0]+'">'+m[1]+'</option>').join('')+'</select></div>'+
-    '<p class="id-note">キーはこの端末のブラウザ内にだけ保存されます。解析する写真は、あなたのキーでAnthropic APIへ直接送信され、利用料がかかります。共有端末では保存しないでください。</p>'+
-    '<div class="confirm-actions"><button class="secondary-btn" id="aiClear" type="button">キーを削除</button><button class="primary-btn" id="aiSave" type="button">保存</button></div>'+
-    '<button class="secondary-btn" id="aiClose" type="button" style="margin-top:8px;width:100%">閉じる</button></form>';
-  document.body.appendChild(d);
-  d.querySelector('#aiSave').addEventListener('click',()=>{
-    saveSettings({key:d.querySelector('#aiKey').value.trim(),model:d.querySelector('#aiModel').value});
-    refreshSettingsLabel();d.close();toast('AI設定を保存しました');
-  });
-  d.querySelector('#aiClear').addEventListener('click',()=>{
-    saveSettings({...loadSettings(),key:''});d.querySelector('#aiKey').value='';refreshSettingsLabel();toast('APIキーを削除しました');
-  });
-  d.querySelector('#aiClose').addEventListener('click',()=>d.close());
-  return d;
-}
-function openSettings(){
-  const d=ensureSettingsDialog(),s=loadSettings();
-  d.querySelector('#aiKey').value=s.key;d.querySelector('#aiModel').value=s.model;
-  if(!d.open)d.showModal();
-}
-function refreshSettingsLabel(){
-  const el=document.getElementById('aiSettingsLabel');
-  if(el)el.textContent=loadSettings().key?'APIキー設定済み':'APIキー未設定（写真・バーコードから製品を特定）';
-}
-function mountSettingsRow(){
-  const anchor=document.getElementById('settingsStorageBtn');
-  if(!anchor||document.getElementById('settingsAiBtn'))return;
-  const b=document.createElement('button');b.id='settingsAiBtn';b.className='setting-row';b.type='button';
-  b.innerHTML='<span><strong>AI製品特定の設定</strong><small id="aiSettingsLabel"></small></span><span>›</span>';
-  b.addEventListener('click',openSettings);anchor.after(b);refreshSettingsLabel();
 }
 
 /* ---------- バーコード読み取りダイアログ ---------- */
@@ -158,8 +136,8 @@ function scanBarcode(){
     d.innerHTML='<form class="confirm-card" method="dialog"><h2>バーコードを読む</h2>'+
       (supported?'<video class="scan-video" playsinline muted></video><p class="id-note">パッケージのバーコードを枠いっぱいに映してください。</p>'
         :'<p class="id-note">この端末・ブラウザはカメラでのバーコード読み取りに未対応です。バーコード下の数字を入力してください。</p>')+
-      '<div class="field"><label for="janInput">バーコードの数字（8〜13桁）</label><input id="janInput" inputmode="numeric" pattern="[0-9]{8,13}" placeholder="4901234567894"></div>'+
-      '<div class="confirm-actions"><button class="secondary-btn" type="button" data-x>キャンセル</button><button class="primary-btn" type="button" data-ok>この番号で特定</button></div></form>';
+      '<div class="field"><label for="janInput">バーコードの数字（8〜13桁）</label><input id="janInput" inputmode="numeric" placeholder="4901234567894"></div>'+
+      '<div class="confirm-actions"><button class="secondary-btn" type="button" data-x>キャンセル</button><button class="primary-btn" type="button" data-ok>この番号で検索</button></div></form>';
     document.body.appendChild(d);
     let stream=null,stop=false,done=false;
     const finish=v=>{if(done)return;done=true;stop=true;stream?.getTracks().forEach(t=>t.stop());if(d.open)d.close();d.remove();resolve(v)};
@@ -191,26 +169,33 @@ function setField(name,value){
   const el=document.querySelector('#editorForm [name="'+name+'"]');
   if(el&&value)el.value=value;
 }
-function verifyLine(v){
-  switch(v.state){
-    case 'match':return '<p class="id-verify ok">✓ 撮った写真と公式画像が一致しました</p>';
-    case 'mismatch':return '<p class="id-verify ng">⚠ 撮った写真と公式画像が一致しません（別製品・別デザインの可能性）'+(v.reason?'<br><small>'+esc(v.reason)+'</small>':'')+'</p>';
-    case 'failed':return '<p class="id-verify">画像の照合はできませんでした（公式画像を取得できない等）</p>';
-    default:return '<p class="id-verify">写真がないため画像の照合はしていません</p>';
-  }
+function officialSearchLink(r,name){
+  const q=[name||r.db[0]?.name||r.candidates[0]||'',r.brand?'':(r.db[0]?.brand||'')].filter(Boolean).join(' ');
+  if(r.brand)return {href:searchUrl('site:'+r.brand[2]+' '+(q||r.brand[0])),label:r.brand[0]+' の公式サイトで探す ↗'};
+  if(r.jan&&!q)return {href:searchUrl(r.jan),label:'バーコード番号で検索 ↗'};
+  return q?{href:searchUrl(q+' 公式'),label:'公式サイトを検索 ↗'}:null;
 }
-function renderResult(box,r,onAdopt){
-  const pageOk=!!r.officialPage;
-  box.innerHTML='<div class="id-card">'+
-    (r.officialImage?'<img class="id-official" src="'+esc(r.officialImage)+'" alt="公式サイトの商品画像" referrerpolicy="no-referrer" loading="lazy">':'')+
-    '<div class="id-info"><strong>'+esc(r.name||'（製品名を特定できませんでした）')+'</strong>'+
-    '<span>'+esc([r.brand,r.category].filter(Boolean).join(' / '))+'</span>'+
-    '<span>確からしさ '+Math.round(r.confidence*100)+'%'+(r.reason?'｜'+esc(r.reason):'')+'</span>'+
-    (pageOk?'<a class="official-link" href="'+esc(r.officialPage)+'" target="_blank" rel="noopener noreferrer">公式ページを確認 ↗</a>':'<span class="id-warn">公式ページは見つかりませんでした</span>')+'</div></div>'+
-    verifyLine(r.verify)+
-    '<div class="photo-tools"><button type="button" data-adopt>'+(r.verify.state==='mismatch'?'違う可能性があるが採用':'この製品を採用')+'</button></div>';
-  if(!r.name)box.querySelector('[data-adopt]').disabled=true;
-  box.querySelector('[data-adopt]').addEventListener('click',()=>onAdopt(r));
+function renderResult(box,r){
+  const chips=[];
+  r.db.forEach((x,i)=>chips.push({kind:'db',i,text:x.name+(x.brand?'（'+x.brand+'）':'')}));
+  r.candidates.forEach((t,i)=>chips.push({kind:'ocr',i,text:t}));
+  const link=officialSearchLink(r);
+  const facts=[r.jan?'バーコード: '+r.jan:'',r.brand?'ブランド: '+r.brand[0]:''].filter(Boolean);
+  box.innerHTML=(facts.length?'<p class="id-facts">'+esc(facts.join('　'))+'</p>':'')+
+    (chips.length?'<p class="id-note">候補をタップすると入力欄に反映します（製品名は後から直せます）</p><div class="id-chips">'+
+      chips.map((c,k)=>'<button type="button" class="id-chip" data-chip="'+k+'">'+(c.kind==='db'?'DB ':'文字 ')+esc(c.text)+'</button>').join('')+'</div>':
+      '<p class="id-note">候補を見つけられませんでした。'+(r.jan?'':'バーコードや製品名が大きく写った写真でお試しください。')+'</p>')+
+    (r.ocrFailed?'<p class="id-warn">'+esc(typeof r.ocrFailed==='string'?r.ocrFailed:'文字認識に失敗しました')+'</p>':'')+
+    (link?'<a class="official-link" href="'+esc(link.href)+'" target="_blank" rel="noopener noreferrer">'+esc(link.label)+'</a>':'')+
+    '<p class="id-note">公式ページを開いて、手元の製品と見比べてください。一致したらそのページのURLを下の欄に貼ると、製品の詳細からいつでも公式ページを開けます。</p>';
+  box.querySelectorAll('[data-chip]').forEach(btn=>btn.addEventListener('click',()=>{
+    const c=chips[+btn.dataset.chip];
+    if(c.kind==='db'){const x=r.db[c.i];setField('name',x.name);setField('brand',x.brand||r.brand?.[0]);setField('ingredients',x.ingredients)}
+    else{setField('name',c.text);if(r.brand)setField('brand',r.brand[0].split(' / ')[0])}
+    const again=officialSearchLink(r,c.kind==='db'?r.db[c.i].name:c.text);
+    const a=box.querySelector('.official-link');if(a&&again){a.href=again.href;a.textContent=again.label}
+    toast('入力欄に反映しました');
+  }));
 }
 async function currentBlob(){
   if(editorState.imageBlob)return editorState.imageBlob;
@@ -221,52 +206,30 @@ function mountIdentify(id){
   const fields=document.getElementById('editorFields');if(!fields||fields.querySelector('.id-block'))return;
   const item=id?data.products.find(x=>x.id===id):null;
   const wrap=document.createElement('div');wrap.className='field id-block';
-  wrap.innerHTML='<span>製品を特定（公式情報を確認）</span>'+
+  wrap.innerHTML='<span>製品を特定（無料・端末内で処理）</span>'+
     '<div class="photo-tools"><button type="button" data-id-scan>バーコードを読む</button><button type="button" data-id-photo>写真から特定</button></div>'+
-    '<p class="id-note">バーコード→写真の順で手がかりを使い、メーカー公式サイトの情報と画像を照合します。結果は確認してから採用できます。<a href="#" data-id-settings>AI設定</a></p>'+
     '<div id="idStatus" class="id-status" role="status" aria-live="polite"></div><div id="idResult"></div>'+
-    '<input type="hidden" name="officialImage" value="'+esc(item?.officialImage||'')+'">'+
-    '<input type="hidden" name="officialSource" value="'+esc(item?.officialSource||'')+'">'+
-    (item?.officialImage?'<div class="photo-tools"><button type="button" data-id-unlink>公式写真のリンクを外す</button></div>':'');
+    '<label for="field-officialSource" class="id-label">公式ページのURL（任意）</label>'+
+    '<input id="field-officialSource" name="officialSource" type="url" inputmode="url" placeholder="https://..." value="'+esc(httpsUrl(item?.officialSource))+'">';
   fields.prepend(wrap);
   const status=wrap.querySelector('#idStatus'),box=wrap.querySelector('#idResult');
   const buttons=[...wrap.querySelectorAll('[data-id-scan],[data-id-photo]')];
-  const busy=(on,msg='')=>{buttons.forEach(b=>b.disabled=on);status.textContent=msg;if(on)box.innerHTML=''};
-  const adopt=r=>{
-    setField('name',r.name);setField('brand',r.brand);setField('category',r.category);
-    setField('ingredients',r.ingredients);setField('purpose',r.purpose);
-    wrap.querySelector('[name="officialImage"]').value=r.officialImage;
-    wrap.querySelector('[name="officialSource"]').value=r.officialPage;
-    box.innerHTML='<p class="id-verify ok">✓ 入力欄に反映しました。内容を確認して「保存」してください</p>';
-    toast('公式情報を反映しました');
-  };
-  const run=async(input)=>{
-    if(!loadSettings().key){toast('先にAPIキーを設定してください');openSettings();return}
+  const run=async input=>{
+    buttons.forEach(b=>b.disabled=true);box.innerHTML='';
     try{
-      busy(true,'公式サイトを検索して照合中…（最大1〜2分かかります）');
-      const r=await identify(input);
-      busy(false);renderResult(box,r,adopt);
-    }catch(e){busy(false,explainError(e));if(e.message==='NO_KEY'||e.status===401)openSettings()}
+      const r=await analyze(input,m=>{status.textContent=m});
+      status.textContent='';renderResult(box,r);
+    }catch(e){status.textContent='失敗しました: '+(e.message||e)}
+    finally{buttons.forEach(b=>b.disabled=false)}
   };
-  wrap.querySelector('[data-id-settings]').addEventListener('click',e=>{e.preventDefault();openSettings()});
-  wrap.querySelector('[data-id-unlink]')?.addEventListener('click',e=>{
-    wrap.querySelector('[name="officialImage"]').value='';wrap.querySelector('[name="officialSource"]').value='';
-    e.target.closest('.photo-tools').remove();toast('保存すると公式写真のリンクが外れます');
-  });
   wrap.querySelector('[data-id-photo]').addEventListener('click',async()=>{
     const blob=await currentBlob();
     if(!blob)return toast('先に「写真」欄で製品の写真を選んでください');
-    busy(true,'バーコードを確認中…');
-    const jan=await detectBarcode(blob);
-    const hint=jan?await lookupBarcode(jan):null;
-    busy(false);run({blob,jan,hint});
+    run({blob});
   });
   wrap.querySelector('[data-id-scan]').addEventListener('click',async()=>{
     const jan=await scanBarcode();if(!jan)return;
-    busy(true,'バーコード '+jan+' を検索中…');
-    const hint=await lookupBarcode(jan);
-    const blob=await currentBlob();
-    busy(false);run({blob,jan,hint});
+    run({blob:await currentBlob(),jan});
   });
 }
 
@@ -276,5 +239,4 @@ openEditor=async function(type,id=null){
   await baseOpenEditor(type,id);
   if(type==='product')mountIdentify(id);
 };
-mountSettingsRow();
 })();
