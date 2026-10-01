@@ -161,8 +161,7 @@ async function v2ProductVisual(item){
       if(local)return {url:local,remote:false,source:null};
     }catch{}
   }
-  const remote=window.productImageFor?.(item.name);
-  return remote?.image?{url:remote.image,remote:true,source:remote.source||null}:{url:null,remote:false,source:null};
+  return {url:null,remote:false,source:null};
 }
 function v2ProductImageMarkup(item,visual){
   if(!visual?.url)return '<div class="item-image-placeholder" aria-hidden="true">▣</div>';
